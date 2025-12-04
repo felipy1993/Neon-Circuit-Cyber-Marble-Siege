@@ -1791,7 +1791,10 @@ export default function App() {
               })}
             </div>
 
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xs md:max-w-md px-4 pointer-events-none z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}>
+            <div
+              className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xs md:max-w-md px-4 pointer-events-none z-40"
+              style={{ paddingBottom: "env(safe-area-inset-bottom, 12px)" }}
+            >
               <div className="h-3 bg-slate-900/80 rounded-full overflow-hidden border border-slate-600 shadow-lg relative">
                 <div
                   className="h-full transition-all duration-300"
@@ -1899,6 +1902,21 @@ export default function App() {
 
       <div className="absolute bottom-2 right-2 text-[10px] text-slate-700 font-mono z-50">
         v8.2.0 // RANK_UPDATE
+      </div>
+      <div className="absolute bottom-14 right-2 z-50">
+        <button
+          onClick={() =>
+            (window as any).recalibrateUI && (window as any).recalibrateUI()
+          }
+          title="Recalibrar UI"
+          className="bg-black/70 border border-slate-700 text-slate-300 hover:text-white p-2 rounded-full shadow-lg"
+          style={{
+            width: "var(--hud-btn-size)",
+            height: "var(--hud-btn-size)",
+          }}
+        >
+          ⟳
+        </button>
       </div>
     </div>
   );

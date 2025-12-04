@@ -1886,8 +1886,11 @@ export default function App() {
 
   return (
     <div
-      className="relative w-full h-[100dvh] overflow-hidden text-white select-none transition-colors duration-700"
-      style={{ backgroundColor: currentWallpaper.bgColor }}
+      className="relative w-full overflow-hidden text-white select-none transition-colors duration-700"
+      style={{
+        backgroundColor: currentWallpaper.bgColor,
+        height: "calc(var(--vh, 1vh) * 100)",
+      }}
     >
       <div
         className="absolute inset-0 z-0 transition-opacity duration-700"

@@ -1,8 +1,12 @@
 
 
+
+
+
+
 import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { LevelConfig, Marble, MarbleColor, MarbleType, Particle, Point, Projectile, FloatingText, PowerupType, UpgradeType, WallpaperId, SkinId } from '../types';
-import { MARBLE_RADIUS, PROJECTILE_SPEED, PATH_WIDTH, CREDITS_PER_MARBLE, CREDITS_PER_COMBO, WALLPAPERS } from '../constants';
+import { MARBLE_RADIUS, PROJECTILE_SPEED, PATH_WIDTH, CREDITS_PER_MARBLE, CREDITS_PER_COMBO, CREDITS_PER_COMBO as CREDITS_PER_COMBO_CONST, WALLPAPERS } from '../constants';
 import { generatePathPoints, getPathLength, getPointAtDistance, getDistance } from '../utils/math';
 
 interface GameCanvasProps {
@@ -445,8 +449,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
         // Aggressive acceleration logic
         const timeInSeconds = frameCountRef.current / 60;
-        // Adjusted ramp up to 0.001 (0.1% per second acceleration)
-        const rampUp = 1 + (timeInSeconds * 0.001); 
+        // Adjusted ramp up to 0.00001 (0.001% per second acceleration)
+        const rampUp = 1 + (timeInSeconds * 0.00001); 
         const speedFactor = Math.min(rampUp, 3.0); // Higher cap (3x max speed)
         
         const dangerZone = pathLengthRef.current * 0.7;
@@ -798,7 +802,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           
           if (isCombo) {
               points *= 1.5; 
-              earnedCredits += CREDITS_PER_COMBO;
+              earnedCredits += CREDITS_PER_COMBO_CONST;
           }
 
           if (comboStreakRef.current > 1) {

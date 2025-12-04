@@ -1,5 +1,4 @@
 
-
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { GameScreen, LevelConfig, PlayerState, PowerupType, UpgradeType, WallpaperId, RankConfig, SkinId } from './types';
 import { LEVELS, SHOP_ITEMS, CREDITS_LEVEL_CLEAR, UPGRADES, WALLPAPERS, RANKS, SKINS } from './constants';
@@ -603,58 +602,60 @@ export default function App() {
     switch (screen) {
       case GameScreen.LOGIN:
         return (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-50 backdrop-blur-md">
-                <div className="w-full max-w-md p-8 rgb-border shadow-2xl relative">
-                    
-                    <h2 className="text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#00f0ff'}}>ACESSO AO SISTEMA</h2>
-                    <p className="text-slate-400 text-center mb-8">Autenticação de Operador Requerida</p>
+            <div className="absolute inset-0 bg-black/90 z-50 backdrop-blur-md overflow-y-auto">
+                <div className="min-h-full flex flex-col items-center justify-center p-4">
+                    <div className="w-full max-w-md p-8 rgb-border shadow-2xl relative my-8">
+                        
+                        <h2 className="text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#00f0ff'}}>ACESSO AO SISTEMA</h2>
+                        <p className="text-slate-400 text-center mb-8">Autenticação de Operador Requerida</p>
 
-                    <form onSubmit={handleLogin} className="flex flex-col gap-4">
-                        <div className="relative">
-                            <User className="absolute left-3 top-3 text-cyan-500" size={20} />
-                            <input 
-                                type="text" 
-                                value={loginIdentifier}
-                                onChange={e => setLoginIdentifier(e.target.value)}
-                                placeholder="EMAIL OU NOME DE USUÁRIO"
-                                className="w-full bg-black/50 border border-slate-600 focus:border-cyan-400 text-white pl-10 pr-4 py-3 rounded outline-none transition-colors"
-                            />
-                        </div>
-                        <div className="relative">
-                            <Key className="absolute left-3 top-3 text-cyan-500" size={20} />
-                            <input 
-                                type={showPassword ? "text" : "password"}
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                placeholder="CHAVE DE SEGURANÇA"
-                                className="w-full bg-black/50 border border-slate-600 focus:border-cyan-400 text-white pl-10 pr-12 py-3 rounded outline-none transition-colors"
-                            />
-                            <button 
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-3 text-slate-500 hover:text-cyan-400"
-                            >
-                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                            <div className="relative">
+                                <User className="absolute left-3 top-3 text-cyan-500" size={20} />
+                                <input 
+                                    type="text" 
+                                    value={loginIdentifier}
+                                    onChange={e => setLoginIdentifier(e.target.value)}
+                                    placeholder="EMAIL OU NOME DE USUÁRIO"
+                                    className="w-full bg-black/50 border border-slate-600 focus:border-cyan-400 text-white pl-10 pr-4 py-3 rounded outline-none transition-colors"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Key className="absolute left-3 top-3 text-cyan-500" size={20} />
+                                <input 
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    placeholder="CHAVE DE SEGURANÇA"
+                                    className="w-full bg-black/50 border border-slate-600 focus:border-cyan-400 text-white pl-10 pr-12 py-3 rounded outline-none transition-colors"
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-3 text-slate-500 hover:text-cyan-400"
+                                >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
+
+                            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setRememberMe(!rememberMe)}>
+                                <div className={`w-5 h-5 border rounded flex items-center justify-center ${rememberMe ? 'bg-cyan-500 border-cyan-500 text-black' : 'border-slate-500'}`}>
+                                    {rememberMe && <Check size={16} />}
+                                </div>
+                                <span className="text-sm text-slate-400 select-none">Manter conectado neste terminal</span>
+                            </div>
+
+                            {authError && <div className="text-red-500 text-sm text-center bg-red-950/30 p-2 rounded border border-red-500/50">{authError}</div>}
+
+                            <Button type="submit" className="w-full mt-4">CONECTAR</Button>
+                        </form>
+
+                        <div className="mt-6 text-center text-sm text-slate-500">
+                            NÃO POSSUI CREDENCIAIS? 
+                            <button onClick={() => { setScreen(GameScreen.REGISTER); setAuthError(''); setLoginIdentifier(''); setPassword(''); }} className="text-yellow-400 hover:text-white ml-2 underline">
+                                REGISTRAR NOVO OPERADOR
                             </button>
                         </div>
-
-                        <div className="flex items-center gap-2 cursor-pointer" onClick={() => setRememberMe(!rememberMe)}>
-                            <div className={`w-5 h-5 border rounded flex items-center justify-center ${rememberMe ? 'bg-cyan-500 border-cyan-500 text-black' : 'border-slate-500'}`}>
-                                {rememberMe && <Check size={16} />}
-                            </div>
-                            <span className="text-sm text-slate-400 select-none">Manter conectado neste terminal</span>
-                        </div>
-
-                        {authError && <div className="text-red-500 text-sm text-center bg-red-950/30 p-2 rounded border border-red-500/50">{authError}</div>}
-
-                        <Button type="submit" className="w-full mt-4">CONECTAR</Button>
-                    </form>
-
-                    <div className="mt-6 text-center text-sm text-slate-500">
-                        NÃO POSSUI CREDENCIAIS? 
-                        <button onClick={() => { setScreen(GameScreen.REGISTER); setAuthError(''); setLoginIdentifier(''); setPassword(''); }} className="text-yellow-400 hover:text-white ml-2 underline">
-                            REGISTRAR NOVO OPERADOR
-                        </button>
                     </div>
                 </div>
             </div>
@@ -662,62 +663,64 @@ export default function App() {
 
       case GameScreen.REGISTER:
         return (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-50 backdrop-blur-md">
-                <div className="w-full max-w-md p-8 rgb-border shadow-2xl relative">
-                    
-                    <h2 className="text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#facc15'}}>REGISTRO DE AGENTE</h2>
-                    <p className="text-slate-400 text-center mb-8">Criar Nova Identidade Digital</p>
+            <div className="absolute inset-0 bg-black/90 z-50 backdrop-blur-md overflow-y-auto">
+                <div className="min-h-full flex flex-col items-center justify-center p-4">
+                    <div className="w-full max-w-md p-8 rgb-border shadow-2xl relative my-8">
+                        
+                        <h2 className="text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#facc15'}}>REGISTRO DE AGENTE</h2>
+                        <p className="text-slate-400 text-center mb-8">Criar Nova Identidade Digital</p>
 
-                    <form onSubmit={handleRegister} className="flex flex-col gap-4">
-                        <div className="relative">
-                            <User className="absolute left-3 top-3 text-yellow-500" size={20} />
-                            <input 
-                                type="text" 
-                                value={regName}
-                                onChange={e => setRegName(e.target.value)}
-                                placeholder="CODINOME (ÚNICO)"
-                                maxLength={12}
-                                className="w-full bg-black/50 border border-slate-600 focus:border-yellow-400 text-white pl-10 pr-4 py-3 rounded outline-none transition-colors uppercase"
-                            />
-                        </div>
-                        <div className="relative">
-                            <Mail className="absolute left-3 top-3 text-yellow-500" size={20} />
-                            <input 
-                                type="email" 
-                                value={regEmail}
-                                onChange={e => setRegEmail(e.target.value)}
-                                placeholder="EMAIL DE CONTATO"
-                                className="w-full bg-black/50 border border-slate-600 focus:border-yellow-400 text-white pl-10 pr-4 py-3 rounded outline-none transition-colors"
-                            />
-                        </div>
-                        <div className="relative">
-                            <Key className="absolute left-3 top-3 text-yellow-500" size={20} />
-                            <input 
-                                type={showPassword ? "text" : "password"}
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                placeholder="CRIAR CHAVE (SENHA)"
-                                className="w-full bg-black/50 border border-slate-600 focus:border-yellow-400 text-white pl-10 pr-12 py-3 rounded outline-none transition-colors"
-                            />
-                            <button 
-                                type="button"
-                                onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-3 top-3 text-slate-500 hover:text-yellow-400"
-                            >
-                                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                        <form onSubmit={handleRegister} className="flex flex-col gap-4">
+                            <div className="relative">
+                                <User className="absolute left-3 top-3 text-yellow-500" size={20} />
+                                <input 
+                                    type="text" 
+                                    value={regName}
+                                    onChange={e => setRegName(e.target.value)}
+                                    placeholder="CODINOME (ÚNICO)"
+                                    maxLength={12}
+                                    className="w-full bg-black/50 border border-slate-600 focus:border-yellow-400 text-white pl-10 pr-4 py-3 rounded outline-none transition-colors uppercase"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Mail className="absolute left-3 top-3 text-yellow-500" size={20} />
+                                <input 
+                                    type="email" 
+                                    value={regEmail}
+                                    onChange={e => setRegEmail(e.target.value)}
+                                    placeholder="EMAIL DE CONTATO"
+                                    className="w-full bg-black/50 border border-slate-600 focus:border-yellow-400 text-white pl-10 pr-4 py-3 rounded outline-none transition-colors"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Key className="absolute left-3 top-3 text-yellow-500" size={20} />
+                                <input 
+                                    type={showPassword ? "text" : "password"}
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    placeholder="CRIAR CHAVE (SENHA)"
+                                    className="w-full bg-black/50 border border-slate-600 focus:border-yellow-400 text-white pl-10 pr-12 py-3 rounded outline-none transition-colors"
+                                />
+                                <button 
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-3 text-slate-500 hover:text-yellow-400"
+                                >
+                                    {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                                </button>
+                            </div>
+
+                            {authError && <div className="text-red-500 text-sm text-center bg-red-950/30 p-2 rounded border border-red-500/50">{authError}</div>}
+
+                            <Button type="submit" className="w-full mt-4 bg-yellow-500 text-black border-none hover:bg-yellow-400">REGISTRAR</Button>
+                        </form>
+
+                        <div className="mt-6 text-center text-sm text-slate-500">
+                            JÁ É UM OPERADOR? 
+                            <button onClick={() => { setScreen(GameScreen.LOGIN); setAuthError(''); setRegName(''); setRegEmail(''); setPassword(''); }} className="text-cyan-400 hover:text-white ml-2 underline">
+                                VOLTAR AO LOGIN
                             </button>
                         </div>
-
-                        {authError && <div className="text-red-500 text-sm text-center bg-red-950/30 p-2 rounded border border-red-500/50">{authError}</div>}
-
-                        <Button type="submit" className="w-full mt-4 bg-yellow-500 text-black border-none hover:bg-yellow-400">REGISTRAR</Button>
-                    </form>
-
-                    <div className="mt-6 text-center text-sm text-slate-500">
-                        JÁ É UM OPERADOR? 
-                        <button onClick={() => { setScreen(GameScreen.LOGIN); setAuthError(''); setRegName(''); setRegEmail(''); setPassword(''); }} className="text-cyan-400 hover:text-white ml-2 underline">
-                            VOLTAR AO LOGIN
-                        </button>
                     </div>
                 </div>
             </div>
@@ -725,83 +728,86 @@ export default function App() {
 
       case GameScreen.MENU:
         return (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 backdrop-blur-sm">
-            <div className="text-6xl md:text-8xl font-display font-bold glitch mb-2 text-center" data-text="NEON CIRCUIT" style={{ textShadow: `0 0 10px ${currentWallpaper.primaryColor}` }}>
-              NEON CIRCUIT
-            </div>
-            <p className="tracking-widest mb-8 text-xl font-bold font-display text-center neon-text-shadow" style={{ color: currentWallpaper.primaryColor }}>
-              CYBER MARBLE SIEGE
-            </p>
-
-            {/* PLAYER PROFILE CARD */}
-            <div className="mb-8 flex flex-col items-center border border-slate-700 bg-slate-900/80 p-4 rounded-lg w-72">
-                <div className="flex items-center gap-2 text-cyan-400 font-mono text-sm mb-2">
-                    <User size={14} /> OPERADOR: {playerState.username}
+          <div className="absolute inset-0 bg-black/60 z-20 backdrop-blur-sm overflow-y-auto">
+            <div className="min-h-full flex flex-col items-center justify-center p-4 py-8">
+                <div className="text-5xl md:text-8xl font-display font-bold glitch mb-2 text-center" data-text="NEON CIRCUIT" style={{ textShadow: `0 0 10px ${currentWallpaper.primaryColor}` }}>
+                  NEON CIRCUIT
                 </div>
-                
-                <div className="w-full h-px bg-slate-700 mb-3"></div>
+                <p className="tracking-widest mb-8 text-xl font-bold font-display text-center neon-text-shadow" style={{ color: currentWallpaper.primaryColor }}>
+                  CYBER MARBLE SIEGE
+                </p>
 
-                <div className="flex items-center gap-3 mb-2">
-                     <span className="text-2xl">{currentRank.icon}</span>
-                     <div className="text-left">
-                         <div className="text-[10px] text-slate-400 uppercase tracking-widest">RANK ATUAL</div>
-                         <div className="font-display font-bold text-lg" style={{ color: currentRank.color, textShadow: `0 0 5px ${currentRank.color}` }}>
-                             {currentRank.name}
+                {/* PLAYER PROFILE CARD */}
+                <div className="mb-6 flex flex-col items-center border border-slate-700 bg-slate-900/80 p-4 rounded-lg w-72">
+                    <div className="flex items-center gap-2 text-cyan-400 font-mono text-sm mb-2">
+                        <User size={14} /> OPERADOR: {playerState.username}
+                    </div>
+                    
+                    <div className="w-full h-px bg-slate-700 mb-3"></div>
+
+                    <div className="flex items-center gap-3 mb-2">
+                         <span className="text-2xl">{currentRank.icon}</span>
+                         <div className="text-left">
+                             <div className="text-[10px] text-slate-400 uppercase tracking-widest">RANK ATUAL</div>
+                             <div className="font-display font-bold text-lg" style={{ color: currentRank.color, textShadow: `0 0 5px ${currentRank.color}` }}>
+                                 {currentRank.name}
+                             </div>
                          </div>
-                     </div>
+                    </div>
+                    
+                    <div className="w-full bg-black/50 h-1.5 rounded-full overflow-hidden mt-1">
+                         <div 
+                            className="h-full" 
+                            style={{ width: '100%', backgroundColor: currentRank.color, opacity: 0.5 }}
+                         ></div>
+                    </div>
+                    <div className="text-[10px] text-slate-500 w-full text-right mt-1">SCORE TOTAL: {playerState.totalScore.toLocaleString()}</div>
                 </div>
                 
-                <div className="w-full bg-black/50 h-1.5 rounded-full overflow-hidden mt-1">
-                     <div 
-                        className="h-full" 
-                        style={{ width: '100%', backgroundColor: currentRank.color, opacity: 0.5 }}
-                     ></div>
+                <div className="flex flex-col gap-4 w-72">
+                  <Button onClick={() => startGame(playerState.unlockedLevels)}>
+                    <div className="flex items-center justify-center gap-2">
+                      <Play size={20} /> INICIAR HACK
+                    </div>
+                  </Button>
+                  <Button variant="secondary" onClick={() => setScreen(GameScreen.LEVEL_SELECT)}>
+                    <div className="flex items-center justify-center gap-2">
+                      <Grid size={20} /> SELEÇÃO DE SETOR
+                    </div>
+                  </Button>
+                  <Button variant="secondary" onClick={() => setScreen(GameScreen.UPGRADES)}>
+                    <div className="flex items-center justify-center gap-2">
+                      <Beaker size={20} /> LABORATÓRIO TECH
+                    </div>
+                  </Button>
+                  <Button variant="secondary" onClick={() => setScreen(GameScreen.CUSTOMIZE)}>
+                    <div className="flex items-center justify-center gap-2">
+                      <Palette size={20} /> PERSONALIZAR
+                    </div>
+                  </Button>
+                  <Button variant="secondary" onClick={() => setScreen(GameScreen.LEADERBOARD)}>
+                    <div className="flex items-center justify-center gap-2">
+                      <ListOrdered size={20} /> RANKING
+                    </div>
+                  </Button>
                 </div>
-                <div className="text-[10px] text-slate-500 w-full text-right mt-1">SCORE TOTAL: {playerState.totalScore.toLocaleString()}</div>
-            </div>
-            
-            <div className="flex flex-col gap-4 w-72">
-              <Button onClick={() => startGame(playerState.unlockedLevels)}>
-                <div className="flex items-center justify-center gap-2">
-                  <Play size={20} /> INICIAR HACK
+                
+                <div className="mt-8 flex items-center gap-2 text-yellow-400 font-mono text-xl border border-yellow-400/30 bg-black/50 px-6 py-2 rounded">
+                    <Coins size={20} /> CRÉDITOS: {playerState.credits}
                 </div>
-              </Button>
-              <Button variant="secondary" onClick={() => setScreen(GameScreen.LEVEL_SELECT)}>
-                <div className="flex items-center justify-center gap-2">
-                  <Grid size={20} /> SELEÇÃO DE SETOR
+                
+                {/* FOOTER CONTROLS - NOW IN FLOW */}
+                <div className="mt-8 flex gap-6">
+                     <button onClick={toggleMusic} className="text-slate-400 hover:text-white transition-colors bg-slate-900/50 p-3 rounded-full border border-slate-700">
+                         {playerState.settings.musicVolume ? <Music size={24} /> : <div className="relative"><Music size={24} /><div className="absolute inset-0 border-t border-red-500 rotate-45 top-3"></div></div>}
+                     </button>
+                     <button onClick={toggleSFX} className="text-slate-400 hover:text-white transition-colors bg-slate-900/50 p-3 rounded-full border border-slate-700">
+                         {playerState.settings.sfxVolume ? <Volume2 size={24} /> : <VolumeX size={24} />}
+                     </button>
+                     <button onClick={handleLogout} className="text-red-500 hover:text-red-400 transition-colors bg-red-950/20 p-3 rounded-full border border-red-900" title="Logout">
+                         <LogOut size={24} />
+                     </button>
                 </div>
-              </Button>
-              <Button variant="secondary" onClick={() => setScreen(GameScreen.UPGRADES)}>
-                <div className="flex items-center justify-center gap-2">
-                  <Beaker size={20} /> LABORATÓRIO TECH
-                </div>
-              </Button>
-              <Button variant="secondary" onClick={() => setScreen(GameScreen.CUSTOMIZE)}>
-                <div className="flex items-center justify-center gap-2">
-                  <Palette size={20} /> PERSONALIZAR
-                </div>
-              </Button>
-              <Button variant="secondary" onClick={() => setScreen(GameScreen.LEADERBOARD)}>
-                <div className="flex items-center justify-center gap-2">
-                  <ListOrdered size={20} /> RANKING
-                </div>
-              </Button>
-            </div>
-            
-            <div className="mt-8 flex items-center gap-2 text-yellow-400 font-mono text-xl border border-yellow-400/30 bg-black/50 px-6 py-2 rounded">
-                <Coins size={20} /> CRÉDITOS: {playerState.credits}
-            </div>
-            
-             <div className="absolute bottom-4 left-4 flex gap-4">
-                 <button onClick={toggleMusic} className="text-slate-400 hover:text-white transition-colors">
-                     {playerState.settings.musicVolume ? <Music size={24} /> : <div className="relative"><Music size={24} /><div className="absolute inset-0 border-t border-red-500 rotate-45 top-3"></div></div>}
-                 </button>
-                 <button onClick={toggleSFX} className="text-slate-400 hover:text-white transition-colors">
-                     {playerState.settings.sfxVolume ? <Volume2 size={24} /> : <VolumeX size={24} />}
-                 </button>
-                 <button onClick={handleLogout} className="text-red-500 hover:text-red-400 transition-colors ml-4" title="Logout">
-                     <LogOut size={24} />
-                 </button>
             </div>
             
             {showDailyBonus && dailyReward && (
@@ -1405,6 +1411,7 @@ export default function App() {
               selectedSkin={playerState.selectedSkin}
               isPaused={isPaused}
               sfxEnabled={playerState.settings.sfxVolume}
+              musicEnabled={playerState.settings.musicVolume} 
               onGameOver={handleGameOver}
               onScoreUpdate={setScore}
               onCreditsUpdate={handleCreditsEarned}

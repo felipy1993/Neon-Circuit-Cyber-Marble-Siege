@@ -12,6 +12,7 @@ interface GameCanvasProps {
   selectedSkin: SkinId;
   isPaused: boolean;
   sfxEnabled: boolean;
+  musicEnabled: boolean; // Nova prop para música
   onGameOver: (score: number, win: boolean) => void;
   onScoreUpdate: (score: number) => void;
   onCreditsUpdate: (credits: number) => void;
@@ -30,6 +31,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   selectedSkin,
   isPaused,
   sfxEnabled,
+  musicEnabled,
   onGameOver, 
   onScoreUpdate, 
   onCreditsUpdate,
@@ -42,14 +44,13 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const creditsRef = useRef(0);
   const frameCountRef = useRef(0);
   
-  // Callback Refs (To avoid recreating animate loop on every render)
+  // Callback Refs
   const onGameOverRef = useRef(onGameOver);
   const onScoreUpdateRef = useRef(onScoreUpdate);
   const onCreditsUpdateRef = useRef(onCreditsUpdate);
   const onProgressUpdateRef = useRef(onProgressUpdate);
   const onPowerupUsedRef = useRef(onPowerupUsed);
 
-  // Update refs on render
   onGameOverRef.current = onGameOver;
   onScoreUpdateRef.current = onScoreUpdate;
   onCreditsUpdateRef.current = onCreditsUpdate;
@@ -58,33 +59,30 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   
   // Audio Context Ref
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const musicNodesRef = useRef<{ osc1: OscillatorNode, osc2: OscillatorNode, gain: GainNode, lfo: OscillatorNode } | null>(null);
   
   // FPS Tracking
   const lastTimeRef = useRef(0);
   const fpsRef = useRef(60);
 
-  // Input Handling Refs
   const lastShotTimeRef = useRef(0);
-
-  // Performance Throttling Refs
   const lastReportedScoreRef = useRef(0);
   const lastReportedProgressRef = useRef(0);
 
-  // Game Stats calculated from Upgrades
+  // Stats
   const projectileSpeed = PROJECTILE_SPEED + (upgrades[UpgradeType.SPEED] * 3);
-  const luckFactor = upgrades[UpgradeType.LUCK] * 0.02; // 2% extra chance per level
+  const luckFactor = upgrades[UpgradeType.LUCK] * 0.02;
   const scoreMultiplier = 1 + (upgrades[UpgradeType.EFFICIENCY] * 0.2);
   const blastRadiusMultiplier = 1 + ((upgrades[UpgradeType.BLAST_RADIUS] || 0) * 0.15);
   const reverseForceMultiplier = 1 + ((upgrades[UpgradeType.REVERSE_FORCE] || 0) * 0.15);
 
-  // Visual FX State
+  // State Refs
   const shakeRef = useRef(0);
   const slowMoTimerRef = useRef(0);
   const reverseTimerRef = useRef(0);
   const empNextShotRef = useRef(false);
-  const comboStreakRef = useRef(0); // Tracks consecutive hits
+  const comboStreakRef = useRef(0); 
   
-  // Game State Refs
   const marblesRef = useRef<Marble[]>([]);
   const projectilesRef = useRef<Projectile[]>([]);
   const particlesRef = useRef<Particle[]>([]);
@@ -95,29 +93,120 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const marblesSpawnedRef = useRef(0);
   const mousePosRef = useRef<Point>({ x: 0, y: 0 });
   
-  // Path data
   const pathPointsRef = useRef<Point[]>([]);
   const pathLengthRef = useRef(0);
   const backgroundNodesRef = useRef<Point[]>([]);
 
-  // Wallpaper config lookup
   const wallpaper = WALLPAPERS.find(w => w.id === wallpaperId) || WALLPAPERS[0];
 
-  // --- AUDIO ENGINE (SYNTH) ---
+  // --- AUDIO ENGINE ---
+
   const initAudio = () => {
       if (!audioCtxRef.current) {
           audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
       }
       if (audioCtxRef.current.state === 'suspended') {
-          audioCtxRef.current.resume();
+          audioCtxRef.current.resume().then(() => {
+              // Try start music after resume if enabled
+              if (musicEnabled && !isPaused) startMusic();
+          });
       }
   };
 
-  const playSound = (type: 'shoot' | 'explode' | 'powerup' | 'swap' | 'gameover' | 'win') => {
-      if (!sfxEnabled || !audioCtxRef.current) return;
+  const startMusic = () => {
+      if (!musicEnabled || isPaused || musicNodesRef.current || !audioCtxRef.current) return;
       
       const ctx = audioCtxRef.current;
-      if (ctx.state === 'closed') return; // Prevent using closed context
+      const now = ctx.currentTime;
+
+      // CYBERPUNK DRONE SYNTH
+      // Osc 1: Deep Sawtooth
+      const osc1 = ctx.createOscillator();
+      osc1.type = 'sawtooth';
+      osc1.frequency.value = 55; // Low A
+
+      // Osc 2: Slightly detuned Sawtooth for thickness
+      const osc2 = ctx.createOscillator();
+      osc2.type = 'sawtooth';
+      osc2.frequency.value = 55.5; 
+
+      // Filter: Lowpass to make it dark
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 200;
+      filter.Q.value = 1;
+
+      // LFO: Modulates filter to make it "breathe"
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.2; // Slow pulse
+      
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 300; // Filter moves up/down by 300hz
+
+      // Master Gain
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(0, now);
+      gain.gain.linearRampToValueAtTime(0.15, now + 2); // Fade in
+
+      // Connections
+      osc1.connect(filter);
+      osc2.connect(filter);
+      
+      lfo.connect(lfoGain);
+      lfoGain.connect(filter.frequency);
+
+      filter.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc1.start();
+      osc2.start();
+      lfo.start();
+
+      musicNodesRef.current = { osc1, osc2, gain, lfo };
+  };
+
+  const stopMusic = () => {
+      if (musicNodesRef.current) {
+          const { osc1, osc2, lfo, gain } = musicNodesRef.current;
+          const ctx = audioCtxRef.current;
+          
+          if (ctx) {
+             // Fade out
+             gain.gain.cancelScheduledValues(ctx.currentTime);
+             gain.gain.setTargetAtTime(0, ctx.currentTime, 0.5);
+          }
+          
+          setTimeout(() => {
+             try {
+                 osc1.stop();
+                 osc2.stop();
+                 lfo.stop();
+             } catch(e) {}
+          }, 600);
+          
+          musicNodesRef.current = null;
+      }
+  };
+
+  // Music Effect Hook
+  useEffect(() => {
+      if (musicEnabled && !isPaused) {
+          if (audioCtxRef.current && audioCtxRef.current.state === 'running') {
+              startMusic();
+          }
+      } else {
+          stopMusic();
+      }
+      
+      return () => stopMusic();
+  }, [musicEnabled, isPaused]);
+
+
+  const playSound = (type: 'shoot' | 'explode' | 'powerup' | 'swap' | 'gameover' | 'win') => {
+      if (!sfxEnabled || !audioCtxRef.current) return;
+      const ctx = audioCtxRef.current;
+      if (ctx.state !== 'running') return;
 
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
@@ -132,7 +221,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
               osc.type = 'triangle';
               osc.frequency.setValueAtTime(880, now);
               osc.frequency.exponentialRampToValueAtTime(110, now + 0.15);
-              gain.gain.setValueAtTime(0.3, now);
+              gain.gain.setValueAtTime(0.2, now);
               gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
               osc.start(now);
               osc.stop(now + 0.15);
@@ -150,7 +239,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
               osc.type = 'sawtooth';
               osc.frequency.setValueAtTime(100, now);
               osc.frequency.exponentialRampToValueAtTime(0.01, now + 0.3);
-              gain.gain.setValueAtTime(0.3, now);
+              gain.gain.setValueAtTime(0.2, now);
               gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
               osc.start(now);
               osc.stop(now + 0.3);
@@ -205,26 +294,20 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     
     // Set Dimensions with DPI Capping for Performance
     const resize = () => {
-        // PERFORMANCE FIX: Cap DPR at 1.5 to avoid lag on high-res screens (Retina/Mobile)
         const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
         const width = window.innerWidth;
         const height = window.innerHeight;
         
         const oldLength = pathLengthRef.current;
         
-        // Logical size (CSS)
         canvas.style.width = `${width}px`;
         canvas.style.height = `${height}px`;
-        
-        // Physical size (Backbuffer)
         canvas.width = width * dpr;
         canvas.height = height * dpr;
         
-        // Reset scale in context so we can draw using logical coordinates
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.scale(dpr, dpr);
         
-        // Regenerate path using logical coordinates
         pathPointsRef.current = generatePathPoints(levelConfig.pathType, width, height);
         const newLength = getPathLength(pathPointsRef.current);
         pathLengthRef.current = newLength;
@@ -236,7 +319,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             });
         }
 
-        // Generate static background nodes (reduced count for performance)
         backgroundNodesRef.current = Array.from({ length: 30 }, () => ({
             x: Math.random() * width,
             y: Math.random() * height
@@ -244,9 +326,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     };
     
     window.addEventListener('resize', resize);
-    resize(); // Initial sizing
+    resize(); 
 
-    // Reset Game State
     marblesRef.current = [];
     projectilesRef.current = [];
     particlesRef.current = [];
@@ -269,7 +350,10 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     currentShooterColorRef.current = levelConfig.colors[Math.floor(Math.random() * levelConfig.colors.length)];
     nextMarbleColorRef.current = levelConfig.colors[Math.floor(Math.random() * levelConfig.colors.length)];
 
-    return () => window.removeEventListener('resize', resize);
+    return () => {
+        window.removeEventListener('resize', resize);
+        stopMusic();
+    };
   }, [levelConfig]);
 
   // Game Loop
@@ -279,12 +363,10 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    // Using capped DPI logic from resize
     const dpr = Math.min(window.devicePixelRatio || 1, 1.5);
     const logicalWidth = canvas.width / dpr;
     const logicalHeight = canvas.height / dpr;
     
-    // Calculate FPS
     const delta = time - lastTimeRef.current;
     if (delta > 0) {
         const instantFps = 1000 / delta;
@@ -292,7 +374,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     }
     lastTimeRef.current = time;
 
-    // Decay Screen Shake
     if (shakeRef.current > 0) shakeRef.current *= 0.9;
     if (shakeRef.current < 0.5) shakeRef.current = 0;
 
@@ -314,7 +395,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                 minOffset = 999999;
             }
 
-            // RUSH START: If we are in the start phase, reduce gap requirement slightly to allow dense packing
             const isRushPhase = marblesSpawnedRef.current < 18;
             const gapRequirement = isRushPhase ? MARBLE_RADIUS * 1.9 : MARBLE_RADIUS * 2.1;
 
@@ -367,14 +447,11 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         const rampUp = 1 + (timeInSeconds * 0.0005); 
         const speedFactor = Math.min(rampUp, 2.0);
         
-        // RUSH START LOGIC: Boost speed for the first 18 balls to make them appear quickly
-        // But only if the lead ball isn't too close to the end (safety)
         const dangerZone = pathLengthRef.current * 0.7;
         const leadOffset = marblesRef.current[0]?.offset || 0;
         const isRushStart = marblesSpawnedRef.current < 18 && leadOffset < dangerZone;
         const introMultiplier = isRushStart ? 3.0 : 1.0;
 
-        // Base Speed Calculation
         const baseSpeed = (0.5 * levelConfig.speedMultiplier * speedFactor * introMultiplier) * timeScale; 
         const reverseSpeedMax = (-8.0 * reverseForceMultiplier) * timeScale;
         const forcedReverseSpeed = (-4.0 * reverseForceMultiplier) * timeScale; 
@@ -422,7 +499,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             });
         }
 
-        // Collision Solver
         let comboCheckNeededIndex = -1;
         for (let i = marblesRef.current.length - 1; i > 0; i--) {
             const behind = marblesRef.current[i];      
@@ -446,7 +522,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             handleMatches(comboCheckNeededIndex, true);
         }
 
-        // Game Over Check
         if (marblesRef.current.length > 0) {
             const head = marblesRef.current[0];
             if (head.offset >= pathLengthRef.current) {
@@ -455,7 +530,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             }
         }
 
-        // 3. Projectiles (CCD)
         for (let i = projectilesRef.current.length - 1; i >= 0; i--) {
             const p = projectilesRef.current[i];
             
@@ -513,7 +587,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                         
                         marblesRef.current.splice(mIdx + 1, 0, newMarble);
 
-                        // Push logic
                         let currIdx = mIdx + 1;
                         while(currIdx < marblesRef.current.length - 1) {
                             const c = marblesRef.current[currIdx];
@@ -525,7 +598,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                         }
 
                         triggerShake(3);
-                        playSound('shoot'); // actually hit sound
+                        playSound('shoot'); 
                         const matched = handleMatches(mIdx + 1, false);
                         
                         if (matched) {
@@ -547,16 +620,14 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             }
         }
 
-        // 4. Particles
         for (let i = particlesRef.current.length - 1; i >= 0; i--) {
             const part = particlesRef.current[i];
             part.x += part.vx;
             part.y += part.vy;
-            part.life -= 0.05; // Faster decay for performance
+            part.life -= 0.05; 
             if (part.life <= 0) particlesRef.current.splice(i, 1);
         }
         
-        // 5. Floating Text
         for (let i = floatingTextsRef.current.length - 1; i >= 0; i--) {
             const txt = floatingTextsRef.current[i];
             txt.y -= 1;
@@ -568,14 +639,12 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     // --- RENDER ---
     ctx.save();
     
-    // Screen Shake
     if (shakeRef.current > 0) {
         const dx = (Math.random() - 0.5) * shakeRef.current;
         const dy = (Math.random() - 0.5) * shakeRef.current;
         ctx.translate(dx, dy);
     }
 
-    // Clear
     ctx.fillStyle = wallpaper.bgColor;
     ctx.fillRect(-10, -10, logicalWidth + 20, logicalHeight + 20);
 
@@ -583,16 +652,13 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     drawTrack(ctx);
     drawDataCore(ctx);
 
-    // Marbles - Optimized Drawing (No ShadowBlur)
     marblesRef.current.forEach(m => {
         const pos = getPointAtDistance(m.offset, pathPointsRef.current, pathLengthRef.current);
         const rotation = m.offset / MARBLE_RADIUS;
         drawMarble(ctx, pos.x, pos.y, m, MARBLE_RADIUS, rotation);
     });
 
-    // Projectiles
     projectilesRef.current.forEach(p => {
-        // Simple glow for projectile (Faster than shadowBlur)
         ctx.globalAlpha = 0.5;
         ctx.fillStyle = p.isEmp ? '#00f0ff' : p.color;
         ctx.beginPath();
@@ -606,13 +672,11 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
              ctx.arc(p.x, p.y, MARBLE_RADIUS, 0, Math.PI * 2);
              ctx.fill();
         } else {
-             // Basic circle for projectile
              ctx.fillStyle = p.color;
              ctx.beginPath();
              ctx.arc(p.x, p.y, MARBLE_RADIUS, 0, Math.PI * 2);
              ctx.fill();
              
-             // Highlight
              ctx.fillStyle = 'rgba(255,255,255,0.8)';
              ctx.beginPath();
              ctx.arc(p.x - 4, p.y - 4, 4, 0, Math.PI * 2);
@@ -623,16 +687,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     drawShooter(ctx, logicalWidth, logicalHeight);
     drawEffects(ctx);
     
-    // FPS Monitor
-    /*
-    ctx.font = '10px monospace';
-    ctx.fillStyle = fpsRef.current < 30 ? '#ff003c' : '#00ff41';
-    ctx.fillText(`FPS: ${Math.round(fpsRef.current)}`, 10, 80);
-    */
-
     ctx.restore();
 
-    // Updates
     if (!isPaused) {
         const total = levelConfig.spawnCount;
         const remaining = total - marblesSpawnedRef.current + marblesRef.current.length;
@@ -650,7 +706,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     }
 
     requestRef.current = requestAnimationFrame(animate);
-  }, [levelConfig, upgrades, wallpaperId, selectedSkin, wallpaper, isPaused, sfxEnabled]); // Dependencies reduced by using refs for callbacks
+  }, [levelConfig, upgrades, wallpaperId, selectedSkin, wallpaper, isPaused, sfxEnabled]); 
 
   // --- HELPERS ---
 
@@ -761,7 +817,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   };
 
   const spawnParticles = (x: number, y: number, color: string) => {
-      // Reduced particle count for performance
       for (let i = 0; i < 8; i++) {
           const angle = Math.random() * Math.PI * 2;
           const speed = Math.random() * 8 + 2;
@@ -787,17 +842,13 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       shakeRef.current = amount;
   };
 
-  // --- RENDERING HELPERS ---
-
   const drawCyberpunkBackground = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
-      // Optimized background: Fewer draws, no complex gradients every frame
       const horizonY = height * 0.3;
       
       ctx.strokeStyle = wallpaper.primaryColor;
       ctx.globalAlpha = 0.1;
       ctx.lineWidth = 1;
       
-      // Grid - Vertical
       for (let i = -5; i <= 10; i++) {
           const x = (width / 2) + (i * 150);
           ctx.beginPath();
@@ -806,7 +857,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           ctx.stroke();
       }
       
-      // Grid - Horizontal (Moving)
       const offset = (Date.now() * 0.05) % 80;
       for (let y = horizonY; y < height; y += 80) {
           const actualY = y + offset;
@@ -817,7 +867,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           ctx.stroke();
       }
       
-      // Nodes
       ctx.globalAlpha = 0.4;
       ctx.fillStyle = wallpaper.primaryColor;
       backgroundNodesRef.current.forEach((node, i) => {
@@ -829,11 +878,9 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   };
 
   const drawTrack = (ctx: CanvasRenderingContext2D) => {
-    // Optimized Track: Removed ShadowBlur, used strokes to simulate glow
     if (pathPointsRef.current.length > 0) {
         const dangerStartIndex = Math.floor(pathPointsRef.current.length * 0.85);
         
-        // Danger Zone Glow (Simulated)
         ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
         ctx.lineWidth = PATH_WIDTH + 12;
         ctx.lineCap = 'round';
@@ -850,7 +897,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         ctx.stroke();
     }
 
-    // Main Track Glow (Simulated with wide transparent stroke)
     ctx.strokeStyle = wallpaper.primaryColor;
     ctx.globalAlpha = 0.15;
     ctx.lineWidth = PATH_WIDTH + 10;
@@ -863,18 +909,15 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     });
     ctx.stroke();
 
-    // Track Border
     ctx.globalAlpha = 0.5;
     ctx.lineWidth = PATH_WIDTH + 2;
     ctx.stroke();
     ctx.globalAlpha = 1.0;
 
-    // Inner Track
     ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
     ctx.lineWidth = PATH_WIDTH;
     ctx.stroke();
     
-    // Dashed Center Line
     ctx.globalCompositeOperation = 'lighter';
     const timeScale = slowMoTimerRef.current > 0 ? 0.4 : 1.0;
     const dashOffset = (-Date.now() / 15) * timeScale;
@@ -899,17 +942,14 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     const endPoint = pathPointsRef.current[pathPointsRef.current.length - 1];
     if (!endPoint) return;
     
-    // Optimized Core: No shadowBlur
     const time = Date.now();
     const pulse = 40 + Math.sin(time / 200) * 5;
     
-    // Glow
     ctx.fillStyle = 'rgba(255, 0, 60, 0.3)';
     ctx.beginPath();
     ctx.arc(endPoint.x, endPoint.y, pulse + 10, 0, Math.PI*2);
     ctx.fill();
 
-    // Shape
     ctx.fillStyle = 'rgba(255, 0, 60, 0.5)';
     ctx.beginPath();
     for(let i=0; i<6; i++) {
@@ -931,10 +971,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   };
 
   const drawMarble = (ctx: CanvasRenderingContext2D, x: number, y: number, marble: Marble, radius: number, rotation: number) => {
-      // HIGH PERFORMANCE MARBLE DRAWING
-      // Removed ctx.shadowBlur entirely. Using layered circles for glow effect.
-
-      // 1. Back Glow (Simulated Shadow)
       let glowColor: string = marble.color;
       if (marble.type === MarbleType.WILDCARD) {
            const hue = (Date.now() / 5) % 360;
@@ -950,7 +986,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       ctx.fill();
       ctx.globalAlpha = 1.0;
 
-      // 2. Main Body
       ctx.fillStyle = marble.color;
       if (marble.type === MarbleType.WILDCARD) ctx.fillStyle = glowColor;
       if (marble.type === MarbleType.BOMB) ctx.fillStyle = `rgb(${150 + Math.sin(Date.now()/100)*100}, 0, 0)`;
@@ -959,13 +994,11 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       ctx.arc(x, y, radius - 1, 0, Math.PI * 2);
       ctx.fill();
 
-      // 3. Highlight (Simple Circle instead of Gradient for speed)
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.beginPath();
       ctx.arc(x - 4, y - 4, radius * 0.3, 0, Math.PI * 2);
       ctx.fill();
       
-      // 4. Icons/Details
       if (marble.type !== MarbleType.NORMAL || marble.backwards) {
           ctx.save();
           ctx.translate(x, y);
@@ -1004,16 +1037,12 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     ctx.translate(cx, cy);
     ctx.rotate(angle);
     
-    // Determine Skin Color
-    let skinColor = wallpaper.primaryColor; // Fallback
+    let skinColor = wallpaper.primaryColor; 
     
     if (selectedSkin === SkinId.RGB) {
         const hue = (Date.now() / 5) % 360;
         skinColor = `hsl(${hue}, 100%, 50%)`;
     } else {
-        // Map other skins directly if we had a color map, 
-        // but for now let's use hardcoded values based on ID or passed prop
-        // Actually, let's look at constants.ts or just switch here.
         switch(selectedSkin) {
             case SkinId.CRIMSON: skinColor = '#ff003c'; break;
             case SkinId.TOXIC: skinColor = '#39ff14'; break;
@@ -1024,7 +1053,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         }
     }
 
-    // Aim Line
     ctx.beginPath();
     ctx.moveTo(35, 0);
     ctx.lineTo(800, 0); 
@@ -1041,16 +1069,14 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     ctx.translate(cx, cy);
     ctx.rotate(angle);
     
-    // Engine Glow (Back of ship) based on Skin Color
     ctx.fillStyle = skinColor;
     ctx.shadowColor = skinColor;
     ctx.shadowBlur = 15;
     ctx.beginPath();
     ctx.arc(-15, 0, 10, 0, Math.PI * 2);
     ctx.fill();
-    ctx.shadowBlur = 0; // Reset
+    ctx.shadowBlur = 0; 
     
-    // Main Body - Always the sleek Triangle shape
     ctx.fillStyle = selectedSkin === SkinId.VOID ? '#050505' : '#0f172a';
     ctx.beginPath();
     ctx.moveTo(25, 0);
@@ -1060,12 +1086,10 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     ctx.closePath();
     ctx.fill();
     
-    // Border / Neon Lines based on Skin Color
     ctx.strokeStyle = empNextShotRef.current ? '#ffffff' : skinColor;
     ctx.lineWidth = 3;
     ctx.stroke();
     
-    // Internal Detail Line
     ctx.strokeStyle = 'rgba(255,255,255,0.3)';
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -1073,19 +1097,16 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     ctx.lineTo(15, 0);
     ctx.stroke();
 
-    // Loaded Marble (The ammo)
     if (empNextShotRef.current) {
          ctx.fillStyle = '#fff';
          ctx.beginPath();
          ctx.arc(0, 0, MARBLE_RADIUS - 2, 0, Math.PI*2);
          ctx.fill();
     } else {
-         // Draw current marble
          ctx.fillStyle = currentShooterColorRef.current;
          ctx.beginPath();
          ctx.arc(0, 0, MARBLE_RADIUS - 6, 0, Math.PI*2); 
          ctx.fill();
-         // Highlight
          ctx.fillStyle = 'rgba(255,255,255,0.7)';
          ctx.beginPath();
          ctx.arc(-2, -2, 3, 0, Math.PI*2);
@@ -1094,7 +1115,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     
     ctx.restore();
 
-    // Next Marble Indicator
     const nextX = cx + 70;
     const nextY = cy + 70;
     
@@ -1104,7 +1124,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     ctx.arc(nextX, nextY, MARBLE_RADIUS + 8, 0, Math.PI*2);
     ctx.stroke();
     
-    // Draw Next Marble (Simplified)
     ctx.fillStyle = nextMarbleColorRef.current;
     ctx.beginPath();
     ctx.arc(nextX, nextY, MARBLE_RADIUS - 4, 0, Math.PI*2);
@@ -1116,9 +1135,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       particlesRef.current.forEach(p => {
         ctx.globalAlpha = p.life;
         ctx.fillStyle = p.color;
-        const size = (Math.random() * 3 + 2); // Constant size logic better for performace
+        const size = (Math.random() * 3 + 2); 
         ctx.beginPath();
-        // Rects are faster than Arcs
         ctx.rect(p.x - size/2, p.y - size/2, size, size);
         ctx.fill();
     });
@@ -1130,9 +1148,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         ctx.globalAlpha = txt.life;
         ctx.font = `bold ${20 * txt.scale}px Orbitron`;
         ctx.fillStyle = '#fff';
-        // Stroke text is expensive, removed for performance or kept minimal
-        // ctx.shadowColor = txt.color;
-        // ctx.shadowBlur = 10;
         ctx.fillStyle = txt.color;
         ctx.textAlign = 'center';
         ctx.fillText(txt.text, txt.x, txt.y);
@@ -1149,7 +1164,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const handleClick = (e: MouseEvent) => {
       if (!canvasRef.current || isPaused) return; 
       
-      // Debounce logic to prevent double-firing (touch + mouse emulation)
       const now = Date.now();
       if (now - lastShotTimeRef.current < 150) return;
       lastShotTimeRef.current = now;
@@ -1202,7 +1216,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   
   const handleTouchMove = (e: TouchEvent) => {
      if (isPaused) return;
-     // Stop scrolling/zooming on mobile while playing
      if (e.cancelable) e.preventDefault();
      const touch = e.touches[0];
      mousePosRef.current = { x: touch.clientX, y: touch.clientY };
@@ -1231,7 +1244,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     window.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('keydown', handleKeyDown);
     
-    // Add non-passive listeners for touch to allow prevention of defaults (scrolling)
     window.addEventListener('touchstart', handleTouchStart, { passive: false });
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     
@@ -1244,6 +1256,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         window.removeEventListener('touchstart', handleTouchStart);
         window.removeEventListener('touchmove', handleTouchMove);
         
+        stopMusic();
         if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
             audioCtxRef.current.close();
             audioCtxRef.current = null;

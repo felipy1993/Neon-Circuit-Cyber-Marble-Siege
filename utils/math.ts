@@ -18,7 +18,11 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
   // Most maps are designed horizontally (Landscape).
   // If the device is in Portrait mode, we generate the map in a "Virtual Landscape" space
   // (swapping width and height) and then swap X/Y coordinates at the end.
-  // Exception: 'hourglass' is natively vertical, so we don't rotate it.
+  // Exception: 'hourglass' and 'snake' (vertical) are natively vertical/tall friendly, so we treat them differently.
+  
+  // 'snake' we actually WANT to rotate if it's designed horizontally to be vertical on mobile
+  // 'hourglass' is already vertical.
+  
   const shouldRotate = isPortrait && type !== 'hourglass';
 
   const genWidth = shouldRotate ? height : width;
@@ -123,6 +127,115 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
         
         x = cx + cosT * rSE;
         y = cy + sinT * rSE;
+        break;
+        
+      // --- NEW MAPS ---
+      
+      case 'heart':
+        // Parametric Heart
+        const tHeart = t * Math.PI * 2;
+        const rHeart = scale * (0.9 - t * 0.2);
+        // Standard heart equation modified for canvas coord
+        x = cx + rHeart * (16 * Math.pow(Math.sin(tHeart), 3)) / 16;
+        y = cy - rHeart * (13 * Math.cos(tHeart) - 5 * Math.cos(2*tHeart) - 2 * Math.cos(3*tHeart) - Math.cos(4*tHeart)) / 16;
+        break;
+
+      case 'triangle':
+        // Rounded Triangle
+        const tTri = t * Math.PI * 2;
+        const rTriBase = scale * (1.0 - t * 0.3);
+        // Approx triangle using cosine with 3 lobes
+        const rTri = rTriBase * (0.8 + 0.2 * Math.cos(3 * (tTri - Math.PI/2))); // Rotate to point up
+        x = cx + Math.cos(tTri - Math.PI/2) * rTri;
+        y = cy + Math.sin(tTri - Math.PI/2) * rTri;
+        break;
+
+      case 'snake':
+        // Zig Zag / Snake pattern
+        // Maps X linearly, oscillates Y
+        x = interpolate(50, genWidth - 50, t);
+        // Frequency increases slightly
+        y = cy + Math.sin(t * Math.PI * 12) * (scale * 0.7);
+        break;
+
+      case 'spiral-square':
+        // Square Spiral (Rectangular Labyrinth approximation)
+        const angleSq = t * Math.PI * 10; // More windings
+        const rSq = scale * (1.0 - t * 0.9);
+        // Use a "squircle" logic but modulated
+        // Simple approximation: mix circle and square based on angle
+        // To make it look "square", we boost values near pi/4 multiples
+        const sec = 1 / Math.max(Math.abs(Math.cos(angleSq)), Math.abs(Math.sin(angleSq)));
+        const rPol = rSq * Math.min(sec, 1.4); // Clamp to avoid infinite spikes
+        x = cx + Math.cos(angleSq) * rPol;
+        y = cy + Math.sin(angleSq) * rPol;
+        break;
+
+      case 'clover-4':
+        // 4-Leaf Clover (Polar Rose k=2)
+        const angleCl = t * Math.PI * 2;
+        const rClBase = scale * (1.0 - t * 0.2);
+        const rCl = rClBase * (0.6 + 0.4 * Math.cos(2 * angleCl));
+        x = cx + Math.cos(angleCl) * rCl;
+        y = cy + Math.sin(angleCl) * rCl;
+        break;
+
+      case 'hexagon':
+        // Rounded Hexagon
+        const angleHex = t * Math.PI * 2;
+        const rHexBase = scale * (1.0 - t * 0.3);
+        // 6 lobes, very subtle curve
+        const rHex = rHexBase * (0.9 + 0.1 * Math.cos(6 * angleHex));
+        x = cx + Math.cos(angleHex) * rHex;
+        y = cy + Math.sin(angleHex) * rHex;
+        break;
+
+      case 'bow':
+        // Bowtie / Lemniscate of Gerono
+        const tBow = t * Math.PI * 2;
+        const rBow = scale * (1.1 - t * 0.2);
+        x = cx + rBow * Math.sin(tBow);
+        y = cy + rBow * Math.sin(tBow) * Math.cos(tBow);
+        break;
+
+      case 'cross':
+        // Rounded Cross (Superellipse n < 1)
+        const angleCr = t * Math.PI * 2;
+        const rCrBase = scale * (1.0 - t * 0.3);
+        const nCr = 0.5; // Concave superellipse
+        const cosCr = Math.cos(angleCr);
+        const sinCr = Math.sin(angleCr);
+        const denCr = Math.pow(Math.abs(cosCr), nCr) + Math.pow(Math.abs(sinCr), nCr);
+        const rCr = rCrBase / Math.pow(denCr, 1/nCr);
+        x = cx + cosCr * rCr;
+        y = cy + sinCr * rCr;
+        break;
+
+      case 'shuriken':
+        // Ninja Star (Astroid rotated)
+        const angleSh = t * Math.PI * 2;
+        const rSh = scale * (1.0 - t * 0.1);
+        // Hypocycloid k=4
+        x = cx + rSh * Math.pow(Math.cos(angleSh), 3);
+        y = cy + rSh * Math.pow(Math.sin(angleSh), 3);
+        // Rotate it 45 deg to look like X or Star
+        const rot = Math.PI / 4;
+        const xRot = (x - cx) * Math.cos(rot) - (y - cy) * Math.sin(rot) + cx;
+        const yRot = (x - cx) * Math.sin(rot) + (y - cy) * Math.cos(rot) + cy;
+        x = xRot;
+        y = yRot;
+        break;
+
+      case 'buzzsaw':
+        // Sawtooth Circle
+        const angleBz = t * Math.PI * 2;
+        const teethBz = 16;
+        const rBzBase = scale * (1.0 - t * 0.6);
+        // Sawtooth wave function
+        const saw = (angleBz * teethBz) % (2 * Math.PI) / (2 * Math.PI);
+        const rBz = rBzBase * (0.85 + 0.15 * saw);
+        x = cx + Math.cos(angleBz) * rBz;
+        y = cy + Math.sin(angleBz) * rBz;
         break;
 
       default:

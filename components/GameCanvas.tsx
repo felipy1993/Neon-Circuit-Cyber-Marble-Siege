@@ -4,6 +4,8 @@
 
 
 
+
+
 import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { LevelConfig, Marble, MarbleColor, MarbleType, Particle, Point, Projectile, FloatingText, PowerupType, UpgradeType, WallpaperId, SkinId } from '../types';
 import { MARBLE_RADIUS, PROJECTILE_SPEED, PATH_WIDTH, CREDITS_PER_MARBLE, CREDITS_PER_COMBO, CREDITS_PER_COMBO as CREDITS_PER_COMBO_CONST, WALLPAPERS } from '../constants';
@@ -400,7 +402,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             }
 
             const isRushPhase = marblesSpawnedRef.current < 18;
-            const gapRequirement = isRushPhase ? MARBLE_RADIUS * 1.9 : MARBLE_RADIUS * 2.1;
+            // Increased spacing to 2.4x radius for slower game pace
+            const gapRequirement = isRushPhase ? MARBLE_RADIUS * 2.2 : MARBLE_RADIUS * 2.4;
 
             if (marblesRef.current.length === 0 || minOffset > gapRequirement) {
                 const color = levelConfig.colors[Math.floor(Math.random() * levelConfig.colors.length)];
@@ -449,17 +452,17 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
         // Aggressive acceleration logic
         const timeInSeconds = frameCountRef.current / 60;
-        // Adjusted ramp up to 0.00001 (0.001% per second acceleration)
-        const rampUp = 1 + (timeInSeconds * 0.00001); 
-        const speedFactor = Math.min(rampUp, 3.0); // Higher cap (3x max speed)
+        // Adjusted ramp up to 0.000005 (VERY SLOW ACCELERATION)
+        const rampUp = 1 + (timeInSeconds * 0.000005); 
+        const speedFactor = Math.min(rampUp, 2.0); // Lower cap
         
         const dangerZone = pathLengthRef.current * 0.7;
         const leadOffset = marblesRef.current[0]?.offset || 0;
         const isRushStart = marblesSpawnedRef.current < 18 && leadOffset < dangerZone;
         const introMultiplier = isRushStart ? 3.0 : 1.0;
 
-        // Increased base speed multiplier from 0.5 to 0.85
-        const baseSpeed = (0.85 * levelConfig.speedMultiplier * speedFactor * introMultiplier) * timeScale; 
+        // Decreased base speed constant from 0.85 to 0.65
+        const baseSpeed = (0.65 * levelConfig.speedMultiplier * speedFactor * introMultiplier) * timeScale; 
         const reverseSpeedMax = (-8.0 * reverseForceMultiplier) * timeScale;
         const forcedReverseSpeed = (-4.0 * reverseForceMultiplier) * timeScale; 
 

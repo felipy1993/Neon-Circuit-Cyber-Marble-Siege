@@ -1,4 +1,6 @@
 
+
+
 import { Point } from '../types';
 
 export const getDistance = (p1: Point, p2: Point) => {
@@ -34,20 +36,21 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
   const cy = genHeight / 2;
   const minDim = Math.min(genWidth, genHeight);
   
-  // Base scale increased from 0.4 to 0.45 to fill more screen
-  let scale = minDim * 0.45;
+  // Base scale increased to 0.48 to fill even more screen
+  let scale = minDim * 0.48;
 
-  // Mobile specific boosts for "thin" maps that look too small when rotated
+  // Mobile specific boosts - AGGRESSIVE SCALING to prevent short maps
   if (isPortrait) {
-      if (type === 'infinity') scale *= 1.6;
-      if (type === 'bow') scale *= 1.5;
-      if (type === 'sine') scale *= 1.5;
-      if (type === 'snake') scale *= 1.5;
+      if (type === 'infinity') scale *= 1.9; // Massive boost for infinity
+      if (type === 'bow') scale *= 1.8;
+      if (type === 'sine') scale *= 1.8;
+      if (type === 'snake') scale *= 1.8;
+      if (type === 'complex') scale *= 1.4;
       // Hourglass is limited by width, so we can't boost it much without clipping
   }
 
   // Reduce padding on mobile to use full vertical height
-  const edgePadding = isPortrait ? 30 : 50;
+  const edgePadding = isPortrait ? 20 : 50;
 
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;

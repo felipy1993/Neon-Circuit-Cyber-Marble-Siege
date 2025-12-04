@@ -3,10 +3,10 @@
 import { LevelConfig, MarbleColor, PowerupType, ShopItem, UpgradeConfig, UpgradeType, WallpaperConfig, WallpaperId, RankConfig, SkinConfig, SkinId } from './types';
 import { Zap, Crosshair, Clover, Triangle, Hexagon, Circle, Shield } from 'lucide-react';
 
-export const MARBLE_RADIUS = 16;
-export const PATH_WIDTH = 32; 
-export const SHOOTER_SIZE = 50;
-export const PROJECTILE_SPEED = 50; // Aumentado para 50 para acompanhar a velocidade maior
+export const MARBLE_RADIUS = 13; // Reduzido de 16 para 13
+export const PATH_WIDTH = 28;    // Ajustado para o novo tamanho
+export const SHOOTER_SIZE = 45;
+export const PROJECTILE_SPEED = 60; // Projetil um pouco mais rápido para compensar alvos menores
 export const BASE_SPAWN_RATE = 50;
 
 export const COLORS = [
@@ -270,9 +270,9 @@ export const LEVELS: LevelConfig[] = Array.from({ length: 1000 }, (_, i) => {
       'buzzsaw'
   ];
   
-  // Speed curve: Increased base speed from 0.6 to 0.8 for faster start
-  // Increased multiplier from 0.9 to 1.2 for sharper difficulty curve
-  const speedMultiplier = 0.8 + (Math.log(difficulty + 5) / Math.log(1000)) * 1.2;
+  // Speed curve: Reduced base speed significantly for mobile playability
+  // From 0.8 base to 0.6 base.
+  const speedMultiplier = 0.6 + (Math.log(difficulty + 5) / Math.log(1000)) * 1.0;
   
   const spawnCount = 30 + Math.floor(difficulty * 1.5);
 

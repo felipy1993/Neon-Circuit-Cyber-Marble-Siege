@@ -1,5 +1,3 @@
-
-
 import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { LevelConfig, Marble, MarbleColor, MarbleType, Particle, Point, Projectile, FloatingText, PowerupType, UpgradeType, WallpaperId } from '../types';
 import { MARBLE_RADIUS, PROJECTILE_SPEED, PATH_WIDTH, CREDITS_PER_MARBLE, CREDITS_PER_COMBO, WALLPAPERS } from '../constants';
@@ -39,6 +37,20 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const scoreRef = useRef(0);
   const creditsRef = useRef(0);
   const frameCountRef = useRef(0);
+  
+  // Callback Refs (To avoid recreating animate loop on every render)
+  const onGameOverRef = useRef(onGameOver);
+  const onScoreUpdateRef = useRef(onScoreUpdate);
+  const onCreditsUpdateRef = useRef(onCreditsUpdate);
+  const onProgressUpdateRef = useRef(onProgressUpdate);
+  const onPowerupUsedRef = useRef(onPowerupUsed);
+
+  // Update refs on render
+  onGameOverRef.current = onGameOver;
+  onScoreUpdateRef.current = onScoreUpdate;
+  onCreditsUpdateRef.current = onCreditsUpdate;
+  onProgressUpdateRef.current = onProgressUpdate;
+  onPowerupUsedRef.current = onPowerupUsed;
   
   // Audio Context Ref
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -164,17 +176,17 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       if (type === PowerupType.EMP) {
         empNextShotRef.current = true;
         addFloatingText(canvasRef.current!.width / (window.devicePixelRatio || 1) / 2, canvasRef.current!.height / (window.devicePixelRatio || 1) / 2, "PEM ARMADO", "#00f0ff", 1.5);
-        onPowerupUsed(type);
+        onPowerupUsedRef.current(type);
       }
       else if (type === PowerupType.SLOW) {
         slowMoTimerRef.current = 600; 
         addFloatingText(canvasRef.current!.width / (window.devicePixelRatio || 1) / 2, canvasRef.current!.height / (window.devicePixelRatio || 1) / 2, "DILATAÇÃO TEMPORAL", "#f0ff00", 1.5);
-        onPowerupUsed(type);
+        onPowerupUsedRef.current(type);
       }
       else if (type === PowerupType.REVERSE) {
         reverseTimerRef.current = 180; 
         addFloatingText(canvasRef.current!.width / (window.devicePixelRatio || 1) / 2, canvasRef.current!.height / (window.devicePixelRatio || 1) / 2, "SISTEMA REVERSO", "#ff00ff", 1.5);
-        onPowerupUsed(type);
+        onPowerupUsedRef.current(type);
       }
     }
   }));
@@ -315,7 +327,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             }
         } else if (marblesRef.current.length === 0 && particlesRef.current.length === 0) {
             playSound('win');
-            onGameOver(scoreRef.current, true);
+            onGameOverRef.current(scoreRef.current, true);
         }
 
         // 2. Physics & Chains
@@ -420,7 +432,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             const head = marblesRef.current[0];
             if (head.offset >= pathLengthRef.current) {
                 playSound('gameover');
-                onGameOver(scoreRef.current, false);
+                onGameOverRef.current(scoreRef.current, false);
             }
         }
 
@@ -608,18 +620,18 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         const currentProgress = Math.max(0, 100 - (remaining / total * 100));
         
         if (Math.abs(currentProgress - lastReportedProgressRef.current) > 0.5) {
-            onProgressUpdate(currentProgress);
+            onProgressUpdateRef.current(currentProgress);
             lastReportedProgressRef.current = currentProgress;
         }
 
         if (scoreRef.current !== lastReportedScoreRef.current) {
-            onScoreUpdate(scoreRef.current);
+            onScoreUpdateRef.current(scoreRef.current);
             lastReportedScoreRef.current = scoreRef.current;
         }
     }
 
     requestRef.current = requestAnimationFrame(animate);
-  }, [levelConfig, onGameOver, onProgressUpdate, onScoreUpdate, upgrades, wallpaperId, wallpaper, isPaused, sfxEnabled]);
+  }, [levelConfig, upgrades, wallpaperId, wallpaper, isPaused, sfxEnabled]); // Dependencies reduced by using refs for callbacks
 
   // --- HELPERS ---
 
@@ -721,7 +733,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           scoreRef.current += Math.floor(points);
           
           creditsRef.current += Math.floor(earnedCredits * scoreMultiplier);
-          onCreditsUpdate(Math.floor(earnedCredits * scoreMultiplier));
+          onCreditsUpdateRef.current(Math.floor(earnedCredits * scoreMultiplier));
           
           marblesRef.current.splice(start, count);
           return true;
@@ -1185,4 +1197,3 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 });
 
 export default GameCanvas;
-

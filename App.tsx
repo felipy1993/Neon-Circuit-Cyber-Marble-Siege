@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { GameScreen, LevelConfig, PlayerState, PowerupType, UpgradeType, WallpaperId, RankConfig } from './types';
 import { LEVELS, SHOP_ITEMS, CREDITS_LEVEL_CLEAR, UPGRADES, WALLPAPERS, RANKS } from './constants';
 import GameCanvas, { GameCanvasRef } from './components/GameCanvas';
@@ -380,7 +380,7 @@ export default function App() {
 
   // --- GAME ACTIONS ---
 
-  const startGame = (levelId: number) => {
+  const startGame = useCallback((levelId: number) => {
     if (playerState.selectedWallpaper === WallpaperId.AUTO) {
         const availableWallpapers = WALLPAPERS.filter(w => w.id !== activeWallpaperId);
         const randomIndex = Math.floor(Math.random() * availableWallpapers.length);
@@ -403,7 +403,7 @@ export default function App() {
         setShowTutorial(false);
         setIsPaused(false);
     }
-  };
+  }, [playerState.selectedWallpaper, playerState.tutorialCompleted, activeWallpaperId]);
 
   const handleNextTutorialStep = () => {
       if (tutorialStep < TUTORIAL_STEPS.length - 1) {
@@ -422,7 +422,7 @@ export default function App() {
     setScreen(GameScreen.MENU);
   };
 
-  const handleGameOver = (finalScore: number, win: boolean) => {
+  const handleGameOver = useCallback((finalScore: number, win: boolean) => {
     setGameResultScore(finalScore);
     setIsPaused(false);
     
@@ -450,24 +450,24 @@ export default function App() {
     } else {
       setScreen(GameScreen.GAME_OVER);
     }
-  };
+  }, [currentLevelId]); // Depends on currentLevelId
   
-  const handleCreditsEarned = (amount: number) => {
+  const handleCreditsEarned = useCallback((amount: number) => {
       // We don't save to DB on every credit earn during game loop, just update state
       // The final save happens on Game Over/Win
       setPlayerState(prev => ({
           ...prev,
           credits: prev.credits + amount
       }));
-  };
+  }, []);
 
-  const nextLevel = () => {
+  const nextLevel = useCallback(() => {
     if (currentLevelId < 1000) {
         startGame(currentLevelId + 1);
     } else {
         setScreen(GameScreen.MENU);
     }
-  };
+  }, [currentLevelId, startGame]);
   
   const handleSmartAction = (itemId: PowerupType, price: number) => {
       const owned = playerState.inventory[itemId] || 0;
@@ -521,7 +521,7 @@ export default function App() {
       }
   };
   
-  const handlePowerupConsumed = (type: PowerupType) => {
+  const handlePowerupConsumed = useCallback((type: PowerupType) => {
       setPlayerState(prev => ({
           ...prev,
           inventory: {
@@ -530,7 +530,7 @@ export default function App() {
           }
       }));
       // Note: We don't save DB here instantly to avoid lag during action, saved at end of level
-  };
+  }, []);
 
   const togglePause = () => {
       if (showTutorial) return;

@@ -443,16 +443,19 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             chains.push(currentChain);
         }
 
+        // Aggressive acceleration logic
         const timeInSeconds = frameCountRef.current / 60;
-        const rampUp = 1 + (timeInSeconds * 0.0005); 
-        const speedFactor = Math.min(rampUp, 2.0);
+        // Increased ramp up from 0.0005 to 0.002 (0.2% per second acceleration)
+        const rampUp = 1 + (timeInSeconds * 0.002); 
+        const speedFactor = Math.min(rampUp, 3.0); // Higher cap (3x max speed)
         
         const dangerZone = pathLengthRef.current * 0.7;
         const leadOffset = marblesRef.current[0]?.offset || 0;
         const isRushStart = marblesSpawnedRef.current < 18 && leadOffset < dangerZone;
         const introMultiplier = isRushStart ? 3.0 : 1.0;
 
-        const baseSpeed = (0.5 * levelConfig.speedMultiplier * speedFactor * introMultiplier) * timeScale; 
+        // Increased base speed multiplier from 0.5 to 0.85
+        const baseSpeed = (0.85 * levelConfig.speedMultiplier * speedFactor * introMultiplier) * timeScale; 
         const reverseSpeedMax = (-8.0 * reverseForceMultiplier) * timeScale;
         const forcedReverseSpeed = (-4.0 * reverseForceMultiplier) * timeScale; 
 

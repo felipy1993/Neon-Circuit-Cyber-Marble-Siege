@@ -6,7 +6,7 @@ import { Zap, Crosshair, Clover, Triangle, Hexagon, Circle, Shield } from 'lucid
 export const MARBLE_RADIUS = 16;
 export const PATH_WIDTH = 32; 
 export const SHOOTER_SIZE = 50;
-export const PROJECTILE_SPEED = 45; // Aumentado de 35 para 45 (mais rápido e responsivo)
+export const PROJECTILE_SPEED = 50; // Aumentado para 50 para acompanhar a velocidade maior
 export const BASE_SPAWN_RATE = 50;
 
 export const COLORS = [
@@ -270,8 +270,9 @@ export const LEVELS: LevelConfig[] = Array.from({ length: 1000 }, (_, i) => {
       'buzzsaw'
   ];
   
-  // Speed curve: Increased base speed from 0.4 to 0.6 for faster start
-  const speedMultiplier = 0.6 + (Math.log(difficulty + 5) / Math.log(1000)) * 0.9;
+  // Speed curve: Increased base speed from 0.6 to 0.8 for faster start
+  // Increased multiplier from 0.9 to 1.2 for sharper difficulty curve
+  const speedMultiplier = 0.8 + (Math.log(difficulty + 5) / Math.log(1000)) * 1.2;
   
   const spawnCount = 30 + Math.floor(difficulty * 1.5);
 

@@ -58,6 +58,16 @@ export enum WallpaperId {
   TOXIC = 'TOXIC'
 }
 
+export enum SkinId {
+  DEFAULT = 'DEFAULT', // Cyan
+  CRIMSON = 'CRIMSON', // Red
+  GOLD = 'GOLD',       // Yellow
+  TOXIC = 'TOXIC',     // Green
+  AMETHYST = 'AMETHYST', // Purple
+  VOID = 'VOID',       // Black/Stealth
+  RGB = 'RGB'          // Animated Rainbow
+}
+
 export interface RankConfig {
   id: string;
   name: string;
@@ -89,7 +99,13 @@ export interface PlayerState {
   };
   highScores: { [levelId: number]: number };
   totalScore: number; // Sum of all high scores for leaderboard
+  
   selectedWallpaper: WallpaperId;
+  
+  // Skin System
+  ownedSkins: SkinId[];
+  selectedSkin: SkinId;
+
   settings: PlayerSettings;
 }
 
@@ -117,6 +133,14 @@ export interface WallpaperConfig {
   secondaryColor: string;
   bgColor: string;
   previewGradient: string;
+}
+
+export interface SkinConfig {
+  id: SkinId;
+  name: string;
+  description: string;
+  price: number;
+  colorHex: string; // Used for UI preview
 }
 
 export interface Point {

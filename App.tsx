@@ -1,9 +1,11 @@
+
+
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { GameScreen, LevelConfig, PlayerState, PowerupType, UpgradeType, WallpaperId, RankConfig } from './types';
-import { LEVELS, SHOP_ITEMS, CREDITS_LEVEL_CLEAR, UPGRADES, WALLPAPERS, RANKS } from './constants';
+import { GameScreen, LevelConfig, PlayerState, PowerupType, UpgradeType, WallpaperId, RankConfig, SkinId } from './types';
+import { LEVELS, SHOP_ITEMS, CREDITS_LEVEL_CLEAR, UPGRADES, WALLPAPERS, RANKS, SKINS } from './constants';
 import GameCanvas, { GameCanvasRef } from './components/GameCanvas';
 import Button from './components/Button';
-import { Play, Grid, Trophy, RotateCcw, ShieldAlert, ShoppingBag, Coins, Zap, Lock, Beaker, ArrowUpCircle, Palette, Check, Pause, LogOut, Volume2, VolumeX, Music, Home, Info, Mouse, Skull, ArrowRight, Shuffle, Calendar, Gift, ListOrdered, User, Terminal, Mail, Key, Eye, EyeOff, Square, CheckSquare, Crown } from 'lucide-react';
+import { Play, Grid, Trophy, RotateCcw, ShieldAlert, ShoppingBag, Coins, Zap, Lock, Beaker, ArrowUpCircle, Palette, Check, Pause, LogOut, Volume2, VolumeX, Music, Home, Info, Mouse, Skull, ArrowRight, Shuffle, Calendar, Gift, ListOrdered, User, Terminal, Mail, Key, Eye, EyeOff, Square, CheckSquare, Crown, Rocket } from 'lucide-react';
 import { auth, db } from './firebase';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, User as FirebaseUser, setPersistence, browserLocalPersistence, browserSessionPersistence } from 'firebase/auth';
 import { doc, setDoc, getDoc, updateDoc, collection, query, orderBy, limit, getDocs, where } from 'firebase/firestore';
@@ -30,6 +32,8 @@ const INITIAL_STATE: PlayerState = {
   highScores: {},
   totalScore: 0,
   selectedWallpaper: WallpaperId.CLASSIC,
+  ownedSkins: [SkinId.DEFAULT],
+  selectedSkin: SkinId.DEFAULT,
   settings: {
     musicVolume: true,
     sfxVolume: true
@@ -78,6 +82,7 @@ export default function App() {
   const [isPaused, setIsPaused] = useState(false);
   
   const [activeWallpaperId, setActiveWallpaperId] = useState<WallpaperId>(WallpaperId.CLASSIC);
+  const [customizeTab, setCustomizeTab] = useState<'WALLPAPERS' | 'SKINS'>('WALLPAPERS');
 
   const [showTutorial, setShowTutorial] = useState(false);
   const [tutorialStep, setTutorialStep] = useState(0);
@@ -114,14 +119,16 @@ export default function App() {
                 
                 if (docSnap.exists()) {
                     const data = docSnap.data() as PlayerState;
-                    // Merge with initial state to ensure new fields (like upgrades) exist
+                    // Merge with initial state to ensure new fields (like upgrades/skins) exist
                     setPlayerState({
                         ...INITIAL_STATE,
                         ...data,
                         username: data.username || 'Operador',
                         inventory: { ...INITIAL_STATE.inventory, ...data.inventory },
                         upgrades: { ...INITIAL_STATE.upgrades, ...data.upgrades },
-                        settings: { ...INITIAL_STATE.settings, ...data.settings }
+                        settings: { ...INITIAL_STATE.settings, ...data.settings },
+                        ownedSkins: data.ownedSkins || [SkinId.DEFAULT],
+                        selectedSkin: data.selectedSkin || SkinId.DEFAULT
                     });
                     setScreen(GameScreen.MENU);
                 } else {
@@ -517,6 +524,29 @@ export default function App() {
       saveToFirebase(newState); // Save preference
   };
   
+  const buyOrSelectSkin = (skinId: SkinId, price: number) => {
+      const isOwned = playerState.ownedSkins.includes(skinId);
+      
+      if (isOwned) {
+          // Select it
+          const newState = { ...playerState, selectedSkin: skinId };
+          setPlayerState(newState);
+          saveToFirebase(newState);
+      } else {
+          // Buy it
+          if (playerState.credits >= price) {
+              const newState = {
+                  ...playerState,
+                  credits: playerState.credits - price,
+                  ownedSkins: [...playerState.ownedSkins, skinId],
+                  selectedSkin: skinId // Auto select on buy
+              };
+              setPlayerState(newState);
+              saveToFirebase(newState);
+          }
+      }
+  };
+  
   const usePowerup = (type: PowerupType) => {
       if (!isPaused && playerState.inventory[type] > 0) {
           if (gameRef.current) {
@@ -880,70 +910,196 @@ export default function App() {
       case GameScreen.CUSTOMIZE:
           return (
             <div className="absolute inset-0 bg-slate-900/95 z-20 overflow-y-auto p-8 backdrop-blur-md">
-                <div className="max-w-4xl mx-auto">
-                    <div className="flex items-center justify-between mb-12 border-b border-slate-700 pb-4">
+                <div className="max-w-5xl mx-auto">
+                    <div className="flex items-center justify-between mb-8 border-b border-slate-700 pb-4 sticky top-0 bg-slate-900/95 z-10 pt-4">
                         <div className="flex items-center gap-4">
                             <Palette size={40} style={{ color: currentWallpaper.primaryColor }} />
-                            <h2 className="text-4xl font-display neon-text-shadow" style={{ color: currentWallpaper.primaryColor }}>TEMAS VISUAIS</h2>
-                        </div>
-                        <Button variant="secondary" onClick={() => setScreen(GameScreen.MENU)}>VOLTAR</Button>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        <button 
-                             onClick={() => selectWallpaper(WallpaperId.AUTO)}
-                             className={`relative h-48 rounded-xl overflow-hidden border-2 transition-all flex flex-col justify-end text-left p-4 group
-                                ${playerState.selectedWallpaper === WallpaperId.AUTO ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.5)] scale-105' : 'border-slate-700 opacity-80 hover:opacity-100 hover:scale-105'}
-                             `}
-                             style={{ background: 'linear-gradient(135deg, #100 0%, #001 50%, #010 100%)' }}
-                        >
-                             <div className="absolute inset-0 opacity-50" style={{
-                                backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 20px)`
-                            }}></div>
-                            <div className="relative z-10 flex justify-between items-end">
-                                <div>
-                                    <div className="flex items-center gap-2">
-                                        <Shuffle size={20} className="text-white animate-spin-slow" />
-                                        <h3 className="text-xl font-bold font-display text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-green-400 to-blue-400 animate-pulse">
-                                            ALEATÓRIO (AUTO)
-                                        </h3>
-                                    </div>
-                                    <p className="text-xs text-slate-400 mt-1">Um tema diferente a cada nível.</p>
-                                </div>
-                                {playerState.selectedWallpaper === WallpaperId.AUTO && <div className="bg-white text-black p-1 rounded-full"><Check size={20} /></div>}
+                            <div>
+                                <h2 className="text-4xl font-display neon-text-shadow" style={{ color: currentWallpaper.primaryColor }}>PERSONALIZAÇÃO</h2>
+                                <p className="text-slate-400 text-sm mt-1">Configure sua interface e sua aeronave.</p>
                             </div>
-                        </button>
-
-                        {WALLPAPERS.map((wp) => {
-                            const isSelected = playerState.selectedWallpaper === wp.id;
-                            return (
-                                <button 
-                                    key={wp.id}
-                                    onClick={() => selectWallpaper(wp.id)}
-                                    className={`relative h-48 rounded-xl overflow-hidden border-2 transition-all flex flex-col justify-end text-left p-4 group
-                                        ${isSelected ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.5)] scale-105' : 'border-slate-700 opacity-80 hover:opacity-100 hover:scale-105'}
-                                    `}
-                                    style={{ background: wp.previewGradient }}
-                                >
-                                    <div className="absolute inset-0 opacity-30" style={{
-                                        backgroundImage: `linear-gradient(${wp.primaryColor} 1px, transparent 1px), linear-gradient(90deg, ${wp.primaryColor} 1px, transparent 1px)`,
-                                        backgroundSize: '20px 20px'
-                                    }}></div>
-
-                                    <div className="relative z-10 flex justify-between items-end">
-                                        <div>
-                                            <h3 className="text-xl font-bold font-display text-white shadow-black drop-shadow-md">{wp.name}</h3>
-                                            <div className="flex gap-2 mt-2">
-                                                <div className="w-4 h-4 rounded-full border border-white" style={{ background: wp.primaryColor }}></div>
-                                                <div className="w-4 h-4 rounded-full border border-white" style={{ background: wp.secondaryColor }}></div>
-                                            </div>
-                                        </div>
-                                        {isSelected && <div className="bg-white text-black p-1 rounded-full"><Check size={20} /></div>}
-                                    </div>
-                                </button>
-                            );
-                        })}
+                        </div>
+                         <div className="flex gap-4 items-center">
+                            <div className="text-yellow-400 font-mono flex items-center gap-2 text-xl mr-4 bg-black/30 px-3 py-1 rounded border border-yellow-400/20">
+                                <Coins size={24} /> {playerState.credits}
+                            </div>
+                            <Button variant="secondary" onClick={() => setScreen(GameScreen.MENU)}>VOLTAR</Button>
+                        </div>
                     </div>
+                    
+                    {/* TABS */}
+                    <div className="flex gap-4 mb-8">
+                        <button 
+                            onClick={() => setCustomizeTab('WALLPAPERS')}
+                            className={`flex-1 py-4 text-lg font-display font-bold rounded-lg border-2 transition-all flex items-center justify-center gap-2
+                                ${customizeTab === 'WALLPAPERS' 
+                                    ? 'bg-slate-800 border-white text-white shadow-[0_0_15px_rgba(255,255,255,0.2)]' 
+                                    : 'bg-black/50 border-slate-700 text-slate-500 hover:text-white hover:border-slate-500'}`}
+                        >
+                            <Grid size={20} /> TEMAS VISUAIS
+                        </button>
+                        <button 
+                            onClick={() => setCustomizeTab('SKINS')}
+                            className={`flex-1 py-4 text-lg font-display font-bold rounded-lg border-2 transition-all flex items-center justify-center gap-2
+                                ${customizeTab === 'SKINS' 
+                                    ? 'bg-slate-800 border-cyan-400 text-cyan-400 shadow-[0_0_15px_rgba(34,211,238,0.2)]' 
+                                    : 'bg-black/50 border-slate-700 text-slate-500 hover:text-white hover:border-slate-500'}`}
+                        >
+                            <Rocket size={20} /> AERONAVE (CORES)
+                        </button>
+                    </div>
+
+                    {customizeTab === 'WALLPAPERS' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                            <button 
+                                onClick={() => selectWallpaper(WallpaperId.AUTO)}
+                                className={`relative h-48 rounded-xl overflow-hidden border-2 transition-all flex flex-col justify-end text-left p-4 group
+                                    ${playerState.selectedWallpaper === WallpaperId.AUTO ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.5)] scale-105' : 'border-slate-700 opacity-80 hover:opacity-100 hover:scale-105'}
+                                `}
+                                style={{ background: 'linear-gradient(135deg, #100 0%, #001 50%, #010 100%)' }}
+                            >
+                                <div className="absolute inset-0 opacity-50" style={{
+                                    backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(255,255,255,0.05) 10px, rgba(255,255,255,0.05) 20px)`
+                                }}></div>
+                                <div className="relative z-10 flex justify-between items-end">
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <Shuffle size={20} className="text-white animate-spin-slow" />
+                                            <h3 className="text-xl font-bold font-display text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-green-400 to-blue-400 animate-pulse">
+                                                ALEATÓRIO (AUTO)
+                                            </h3>
+                                        </div>
+                                        <p className="text-xs text-slate-400 mt-1">Um tema diferente a cada nível.</p>
+                                    </div>
+                                    {playerState.selectedWallpaper === WallpaperId.AUTO && <div className="bg-white text-black p-1 rounded-full"><Check size={20} /></div>}
+                                </div>
+                            </button>
+
+                            {WALLPAPERS.map((wp) => {
+                                const isSelected = playerState.selectedWallpaper === wp.id;
+                                return (
+                                    <button 
+                                        key={wp.id}
+                                        onClick={() => selectWallpaper(wp.id)}
+                                        className={`relative h-48 rounded-xl overflow-hidden border-2 transition-all flex flex-col justify-end text-left p-4 group
+                                            ${isSelected ? 'border-white shadow-[0_0_20px_rgba(255,255,255,0.5)] scale-105' : 'border-slate-700 opacity-80 hover:opacity-100 hover:scale-105'}
+                                        `}
+                                        style={{ background: wp.previewGradient }}
+                                    >
+                                        <div className="absolute inset-0 opacity-30" style={{
+                                            backgroundImage: `linear-gradient(${wp.primaryColor} 1px, transparent 1px), linear-gradient(90deg, ${wp.primaryColor} 1px, transparent 1px)`,
+                                            backgroundSize: '20px 20px'
+                                        }}></div>
+
+                                        <div className="relative z-10 flex justify-between items-end">
+                                            <div>
+                                                <h3 className="text-xl font-bold font-display text-white shadow-black drop-shadow-md">{wp.name}</h3>
+                                                <div className="flex gap-2 mt-2">
+                                                    <div className="w-4 h-4 rounded-full border border-white" style={{ background: wp.primaryColor }}></div>
+                                                    <div className="w-4 h-4 rounded-full border border-white" style={{ background: wp.secondaryColor }}></div>
+                                                </div>
+                                            </div>
+                                            {isSelected && <div className="bg-white text-black p-1 rounded-full"><Check size={20} /></div>}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {customizeTab === 'SKINS' && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                             {SKINS.map((skin) => {
+                                 const isOwned = playerState.ownedSkins.includes(skin.id);
+                                 const isSelected = playerState.selectedSkin === skin.id;
+                                 const canAfford = playerState.credits >= skin.price;
+
+                                 // CSS for RGB preview
+                                 const rgbStyle = skin.id === SkinId.RGB ? {
+                                     backgroundImage: 'linear-gradient(45deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
+                                     backgroundSize: '200% 200%',
+                                     animation: 'rgb-glow 2s linear infinite'
+                                 } : {};
+
+                                 return (
+                                     <div 
+                                        key={skin.id}
+                                        className={`relative border-2 rounded-xl p-6 flex flex-col gap-4 overflow-hidden transition-all
+                                            ${isSelected 
+                                                ? 'bg-slate-800/80 border-cyan-400 shadow-[0_0_20px_rgba(34,211,238,0.2)]' 
+                                                : 'bg-black/40 border-slate-700 hover:border-slate-500'
+                                            }
+                                        `}
+                                     >
+                                         <div className="absolute top-0 right-0 p-4">
+                                             {isSelected && <div className="bg-cyan-400 text-black px-3 py-1 rounded-full text-xs font-bold font-display">EQUIPADO</div>}
+                                             {!isOwned && <Lock size={20} className="text-slate-600" />}
+                                         </div>
+
+                                         <div className="h-32 flex items-center justify-center bg-black/50 rounded-lg border border-slate-800">
+                                             {/* Preview of the ship color */}
+                                             <div className="relative w-16 h-16 flex items-center justify-center">
+                                                  {/* Triangle Ship */}
+                                                  <div className="w-0 h-0 border-l-[25px] border-l-transparent border-r-[25px] border-r-transparent border-b-[45px]"
+                                                       style={{ 
+                                                           borderBottomColor: '#0f172a',
+                                                           filter: `drop-shadow(0 0 5px ${skin.colorHex === 'RGB' ? '#fff' : skin.colorHex})`
+                                                       }}
+                                                  ></div>
+                                                  {/* The Border Color Preview */}
+                                                  <div className="absolute inset-0 w-full h-full flex items-center justify-center pointer-events-none">
+                                                       <div style={{
+                                                           position: 'absolute',
+                                                           width: '0',
+                                                           height: '0',
+                                                           borderLeft: '25px solid transparent',
+                                                           borderRight: '25px solid transparent',
+                                                           borderBottom: `45px solid ${skin.colorHex === 'RGB' ? 'transparent' : skin.colorHex}`,
+                                                           opacity: 0.3,
+                                                           ...rgbStyle
+                                                       }}></div>
+                                                        {skin.id === SkinId.RGB && (
+                                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[10px] font-bold text-white z-10">RGB</div>
+                                                        )}
+                                                  </div>
+                                             </div>
+                                         </div>
+
+                                         <div className="flex-1">
+                                             <h3 className="text-2xl font-display font-bold text-white">{skin.name}</h3>
+                                             <p className="text-sm text-slate-400 leading-tight min-h-[40px]">{skin.description}</p>
+                                         </div>
+
+                                         {isOwned ? (
+                                             <button 
+                                                onClick={() => buyOrSelectSkin(skin.id, 0)}
+                                                disabled={isSelected}
+                                                className={`w-full py-3 rounded font-bold font-display uppercase tracking-wider
+                                                    ${isSelected ? 'bg-slate-700 text-slate-400 cursor-default' : 'bg-cyan-500 hover:bg-cyan-400 text-black'}
+                                                `}
+                                             >
+                                                 {isSelected ? 'SELECIONADO' : 'EQUIPAR'}
+                                             </button>
+                                         ) : (
+                                             <button 
+                                                onClick={() => buyOrSelectSkin(skin.id, skin.price)}
+                                                disabled={!canAfford}
+                                                className={`w-full py-3 rounded font-bold font-display flex items-center justify-center gap-2
+                                                    ${canAfford ? 'bg-yellow-500 hover:bg-yellow-400 text-black' : 'bg-slate-800 text-slate-500 cursor-not-allowed'}
+                                                `}
+                                             >
+                                                 {skin.price === 0 ? 'GRÁTIS' : (
+                                                     <>
+                                                         COMPRAR <span className="font-mono text-sm bg-black/20 px-2 py-0.5 rounded">{skin.price.toLocaleString()}</span>
+                                                     </>
+                                                 )}
+                                             </button>
+                                         )}
+                                     </div>
+                                 );
+                             })}
+                        </div>
+                    )}
                 </div>
             </div>
           );
@@ -1246,6 +1402,7 @@ export default function App() {
               levelConfig={currentLevelConfig}
               upgrades={playerState.upgrades}
               wallpaperId={activeWallpaperId}
+              selectedSkin={playerState.selectedSkin}
               isPaused={isPaused}
               sfxEnabled={playerState.settings.sfxVolume}
               onGameOver={handleGameOver}

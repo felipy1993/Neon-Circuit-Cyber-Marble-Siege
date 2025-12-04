@@ -1,7 +1,7 @@
 
 
-import { LevelConfig, MarbleColor, PowerupType, ShopItem, UpgradeConfig, UpgradeType, WallpaperConfig, WallpaperId, RankConfig } from './types';
-import { Zap, Crosshair, Clover } from 'lucide-react';
+import { LevelConfig, MarbleColor, PowerupType, ShopItem, UpgradeConfig, UpgradeType, WallpaperConfig, WallpaperId, RankConfig, SkinConfig, SkinId } from './types';
+import { Zap, Crosshair, Clover, Triangle, Hexagon, Circle, Shield } from 'lucide-react';
 
 export const MARBLE_RADIUS = 16;
 export const PATH_WIDTH = 32; 
@@ -30,6 +30,58 @@ export const RANKS: RankConfig[] = [
   { id: 'ELITE', name: 'CYBER ELITE', minScore: 150000, color: '#f0ff00', icon: '⚡' },
   { id: 'MASTER', name: 'SYSTEM LORD', minScore: 500000, color: '#ff00ff', icon: '👑' },
   { id: 'GOD', name: 'SINGULARITY', minScore: 1000000, color: '#ff003c', icon: '🧿' }
+];
+
+export const SKINS: SkinConfig[] = [
+  {
+    id: SkinId.DEFAULT,
+    name: 'NEON BLUE',
+    description: 'Chassi padrão de emissão de fótons azuis.',
+    price: 0,
+    colorHex: '#00f0ff'
+  },
+  {
+    id: SkinId.CRIMSON,
+    name: 'CRIMSON RED',
+    description: 'Acabamento agressivo em vermelho.',
+    price: 5000,
+    colorHex: '#ff003c'
+  },
+  {
+    id: SkinId.TOXIC,
+    name: 'TOXIC GREEN',
+    description: 'Borda radioativa verde.',
+    price: 10000,
+    colorHex: '#39ff14'
+  },
+  {
+    id: SkinId.GOLD,
+    name: 'ROYAL GOLD',
+    description: 'Banhado a ouro digital.',
+    price: 20000,
+    colorHex: '#ffd700'
+  },
+  {
+    id: SkinId.AMETHYST,
+    name: 'AMETHYST',
+    description: 'Roxo profundo de alta energia.',
+    price: 30000,
+    colorHex: '#9d00ff'
+  },
+  {
+    id: SkinId.VOID,
+    name: 'VOID BLACK',
+    description: 'Absorve luz. Borda escura.',
+    price: 40000,
+    colorHex: '#111111'
+  },
+  {
+    id: SkinId.RGB,
+    name: 'RGB MASTER',
+    description: 'Ciclo cromático animado. O auge do estilo.',
+    price: 75000,
+    colorHex: 'RGB' // Special handler
+  }
 ];
 
 export const SHOP_ITEMS: ShopItem[] = [

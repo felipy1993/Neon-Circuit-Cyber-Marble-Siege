@@ -1,6 +1,7 @@
 
+
 import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { LevelConfig, Marble, MarbleColor, MarbleType, Particle, Point, Projectile, FloatingText, PowerupType, UpgradeType, WallpaperId } from '../types';
+import { LevelConfig, Marble, MarbleColor, MarbleType, Particle, Point, Projectile, FloatingText, PowerupType, UpgradeType, WallpaperId, SkinId } from '../types';
 import { MARBLE_RADIUS, PROJECTILE_SPEED, PATH_WIDTH, CREDITS_PER_MARBLE, CREDITS_PER_COMBO, WALLPAPERS } from '../constants';
 import { generatePathPoints, getPathLength, getPointAtDistance, getDistance } from '../utils/math';
 
@@ -8,6 +9,7 @@ interface GameCanvasProps {
   levelConfig: LevelConfig;
   upgrades: { [key in UpgradeType]: number };
   wallpaperId: WallpaperId;
+  selectedSkin: SkinId;
   isPaused: boolean;
   sfxEnabled: boolean;
   onGameOver: (score: number, win: boolean) => void;
@@ -25,6 +27,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   levelConfig, 
   upgrades,
   wallpaperId,
+  selectedSkin,
   isPaused,
   sfxEnabled,
   onGameOver, 
@@ -647,7 +650,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     }
 
     requestRef.current = requestAnimationFrame(animate);
-  }, [levelConfig, upgrades, wallpaperId, wallpaper, isPaused, sfxEnabled]); // Dependencies reduced by using refs for callbacks
+  }, [levelConfig, upgrades, wallpaperId, selectedSkin, wallpaper, isPaused, sfxEnabled]); // Dependencies reduced by using refs for callbacks
 
   // --- HELPERS ---
 
@@ -1001,10 +1004,30 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     ctx.translate(cx, cy);
     ctx.rotate(angle);
     
+    // Determine Skin Color
+    let skinColor = wallpaper.primaryColor; // Fallback
+    
+    if (selectedSkin === SkinId.RGB) {
+        const hue = (Date.now() / 5) % 360;
+        skinColor = `hsl(${hue}, 100%, 50%)`;
+    } else {
+        // Map other skins directly if we had a color map, 
+        // but for now let's use hardcoded values based on ID or passed prop
+        // Actually, let's look at constants.ts or just switch here.
+        switch(selectedSkin) {
+            case SkinId.CRIMSON: skinColor = '#ff003c'; break;
+            case SkinId.TOXIC: skinColor = '#39ff14'; break;
+            case SkinId.GOLD: skinColor = '#ffd700'; break;
+            case SkinId.AMETHYST: skinColor = '#9d00ff'; break;
+            case SkinId.VOID: skinColor = '#111111'; break;
+            case SkinId.DEFAULT: skinColor = '#00f0ff'; break;
+        }
+    }
+
     // Aim Line
     ctx.beginPath();
     ctx.moveTo(35, 0);
-    ctx.lineTo(800, 0); // Shortened aim line
+    ctx.lineTo(800, 0); 
     ctx.strokeStyle = empNextShotRef.current ? '#ffffff' : currentShooterColorRef.current;
     ctx.lineWidth = empNextShotRef.current ? 4 : 2;
     ctx.setLineDash(empNextShotRef.current ? [] : [2, 10]); 
@@ -1018,18 +1041,17 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     ctx.translate(cx, cy);
     ctx.rotate(angle);
     
-    // Simulated Glow for Shooter
-    ctx.fillStyle = empNextShotRef.current ? '#00f0ff' : currentShooterColorRef.current;
-    ctx.globalAlpha = 0.3;
+    // Engine Glow (Back of ship) based on Skin Color
+    ctx.fillStyle = skinColor;
+    ctx.shadowColor = skinColor;
+    ctx.shadowBlur = 15;
     ctx.beginPath();
-    ctx.moveTo(30, 0);
-    ctx.lineTo(-25, 25);
-    ctx.lineTo(-25, -25);
+    ctx.arc(-15, 0, 10, 0, Math.PI * 2);
     ctx.fill();
-    ctx.globalAlpha = 1.0;
+    ctx.shadowBlur = 0; // Reset
     
-    // Main Shooter Body
-    ctx.fillStyle = '#0f172a';
+    // Main Body - Always the sleek Triangle shape
+    ctx.fillStyle = selectedSkin === SkinId.VOID ? '#050505' : '#0f172a';
     ctx.beginPath();
     ctx.moveTo(25, 0);
     ctx.lineTo(-20, 20);
@@ -1038,25 +1060,35 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     ctx.closePath();
     ctx.fill();
     
-    ctx.strokeStyle = empNextShotRef.current ? '#ffffff' : wallpaper.primaryColor;
-    ctx.lineWidth = 2;
+    // Border / Neon Lines based on Skin Color
+    ctx.strokeStyle = empNextShotRef.current ? '#ffffff' : skinColor;
+    ctx.lineWidth = 3;
     ctx.stroke();
     
+    // Internal Detail Line
+    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(-10, 0);
+    ctx.lineTo(15, 0);
+    ctx.stroke();
+
+    // Loaded Marble (The ammo)
     if (empNextShotRef.current) {
          ctx.fillStyle = '#fff';
          ctx.beginPath();
          ctx.arc(0, 0, MARBLE_RADIUS - 2, 0, Math.PI*2);
          ctx.fill();
     } else {
-         // Draw current marble simply
+         // Draw current marble
          ctx.fillStyle = currentShooterColorRef.current;
          ctx.beginPath();
-         ctx.arc(0, 0, MARBLE_RADIUS - 2, 0, Math.PI*2);
+         ctx.arc(0, 0, MARBLE_RADIUS - 6, 0, Math.PI*2); 
          ctx.fill();
          // Highlight
          ctx.fillStyle = 'rgba(255,255,255,0.7)';
          ctx.beginPath();
-         ctx.arc(-4, -4, 4, 0, Math.PI*2);
+         ctx.arc(-2, -2, 3, 0, Math.PI*2);
          ctx.fill();
     }
     

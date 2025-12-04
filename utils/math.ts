@@ -12,10 +12,22 @@ export const interpolate = (start: number, end: number, factor: number) => {
 
 // Internal function to get raw parametric points
 const getRawPathPoints = (type: string, width: number, height: number, steps: number): Point[] => {
+  // AUTO-ROTATION LOGIC FOR MOBILE PORTRAIT MODE
+  const isPortrait = height > width;
+
+  // Most maps are designed horizontally (Landscape).
+  // If the device is in Portrait mode, we generate the map in a "Virtual Landscape" space
+  // (swapping width and height) and then swap X/Y coordinates at the end.
+  // Exception: 'hourglass' is natively vertical, so we don't rotate it.
+  const shouldRotate = isPortrait && type !== 'hourglass';
+
+  const genWidth = shouldRotate ? height : width;
+  const genHeight = shouldRotate ? width : height;
+
   const points: Point[] = [];
-  const cx = width / 2;
-  const cy = height / 2;
-  const minDim = Math.min(width, height);
+  const cx = genWidth / 2;
+  const cy = genHeight / 2;
+  const minDim = Math.min(genWidth, genHeight);
   const scale = minDim * 0.4;
 
   for (let i = 0; i <= steps; i++) {
@@ -45,7 +57,8 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
         break;
         
       case 'sine':
-         x = interpolate(50, width - 50, t);
+         // Use genWidth to ensure full length usage
+         x = interpolate(50, genWidth - 50, t);
          y = cy + Math.sin(t * Math.PI * 8) * (scale * 0.6);
          break;
 
@@ -61,10 +74,8 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
         
       case 'star':
         // 5-Pointed Star Pattern
-        // It spirals slightly inward to ensure start/end don't touch
         const angleStar = t * Math.PI * 2;
         const lobes = 5;
-        // The radius oscillates to create points
         const rBaseStar = scale * (1.0 - t * 0.3); // Slight spiral in
         const rStar = rBaseStar * (0.6 + 0.4 * Math.cos(lobes * angleStar));
         // Rotate -PI/2 to make top point upwards
@@ -76,16 +87,13 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
         // Astroid Shape (Concave Diamond)
         const angleD = t * Math.PI * 2;
         const rD = scale * (1.0 - t * 0.2);
-        // x = a cos^3 t, y = a sin^3 t
         x = cx + rD * Math.pow(Math.cos(angleD), 3);
         y = cy + rD * Math.pow(Math.sin(angleD), 3);
         break;
 
       case 'hourglass':
-        // Vertical Figure-8 (Lissajous)
+        // Vertical Figure-8 (Lissajous) - Natively Vertical
         const tH = t * Math.PI * 2;
-        // x = A * sin(t) * cos(t) (Horizontal oscillation narrow)
-        // y = B * sin(t) (Vertical oscillation wide)
         const rH = scale * (1.0 - t * 0.1); 
         x = cx + (rH * 1.0) * Math.sin(tH) * Math.cos(tH); 
         y = cy + (rH * 1.2) * Math.sin(tH);
@@ -95,8 +103,7 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
         // Mechanical Gear shape
         const angleG = t * Math.PI * 2;
         const teeth = 8;
-        const rGearBase = scale * (1.0 - t * 0.6); // Strong spiral in
-        // Square wave or sine wave on radius
+        const rGearBase = scale * (1.0 - t * 0.6); 
         const rGear = rGearBase * (0.85 + 0.15 * Math.sin(teeth * angleG));
         x = cx + Math.cos(angleG) * rGear;
         y = cy + Math.sin(angleG) * rGear;
@@ -105,14 +112,12 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
       case 'super-ellipse':
         // Rounded Square (Squircle)
         const angleSE = t * Math.PI * 2;
-        const n = 4; // Higher n = more square
+        const n = 4; 
         const rSEBase = scale * (1.0 - t * 0.4);
         
         const cosT = Math.cos(angleSE);
         const sinT = Math.sin(angleSE);
         
-        // Polar form of Superellipse: r = ab / ( |b cos|^n + |a sin|^n )^(1/n)
-        // Assuming a=b=rSEBase
         const den = Math.pow(Math.abs(cosT), n) + Math.pow(Math.abs(sinT), n);
         const rSE = rSEBase / Math.pow(den, 1/n);
         
@@ -126,6 +131,15 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
     }
     points.push({ x, y });
   }
+
+  // If we generated in virtual landscape for portrait mode, rotate points 90 degrees
+  if (shouldRotate) {
+      return points.map(p => ({
+          x: p.y,           // Short dimension becomes X (Width)
+          y: p.x            // Long dimension becomes Y (Height)
+      }));
+  }
+
   return points;
 };
 

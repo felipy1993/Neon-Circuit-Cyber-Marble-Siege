@@ -1273,14 +1273,14 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
       const canvas = canvasRef.current;
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio || 1;
-      
+
       // Convert viewport coordinates to logical canvas coordinates
       const logicalX = (e.clientX - rect.left) / (rect.width / canvas.width);
       const logicalY = (e.clientY - rect.top) / (rect.height / canvas.height);
-      
+
       const logicalWidth = canvas.width / dpr;
       const logicalHeight = canvas.height / dpr;
-      
+
       const cx = logicalWidth / 2;
       const cy = logicalHeight / 2;
 

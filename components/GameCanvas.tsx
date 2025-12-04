@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { LevelConfig, Marble, MarbleColor, MarbleType, Particle, Point, Projectile, FloatingText, PowerupType, UpgradeType, WallpaperId } from '../types';
 import { MARBLE_RADIUS, PROJECTILE_SPEED, PATH_WIDTH, CREDITS_PER_MARBLE, CREDITS_PER_COMBO, WALLPAPERS } from '../constants';
@@ -310,7 +311,11 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                 minOffset = 999999;
             }
 
-            if (marblesRef.current.length === 0 || minOffset > MARBLE_RADIUS * 2.1) {
+            // RUSH START: If we are in the start phase, reduce gap requirement slightly to allow dense packing
+            const isRushPhase = marblesSpawnedRef.current < 18;
+            const gapRequirement = isRushPhase ? MARBLE_RADIUS * 1.9 : MARBLE_RADIUS * 2.1;
+
+            if (marblesRef.current.length === 0 || minOffset > gapRequirement) {
                 const color = levelConfig.colors[Math.floor(Math.random() * levelConfig.colors.length)];
                 
                 let type = MarbleType.NORMAL;
@@ -359,8 +364,15 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         const rampUp = 1 + (timeInSeconds * 0.0005); 
         const speedFactor = Math.min(rampUp, 2.0);
         
-        // Slightly faster base speed for better feel
-        const baseSpeed = (0.5 * levelConfig.speedMultiplier * speedFactor) * timeScale; 
+        // RUSH START LOGIC: Boost speed for the first 18 balls to make them appear quickly
+        // But only if the lead ball isn't too close to the end (safety)
+        const dangerZone = pathLengthRef.current * 0.7;
+        const leadOffset = marblesRef.current[0]?.offset || 0;
+        const isRushStart = marblesSpawnedRef.current < 18 && leadOffset < dangerZone;
+        const introMultiplier = isRushStart ? 3.0 : 1.0;
+
+        // Base Speed Calculation
+        const baseSpeed = (0.5 * levelConfig.speedMultiplier * speedFactor * introMultiplier) * timeScale; 
         const reverseSpeedMax = (-8.0 * reverseForceMultiplier) * timeScale;
         const forcedReverseSpeed = (-4.0 * reverseForceMultiplier) * timeScale; 
 

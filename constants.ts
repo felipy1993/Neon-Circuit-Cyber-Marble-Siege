@@ -6,7 +6,7 @@ import { Zap, Crosshair, Clover } from 'lucide-react';
 export const MARBLE_RADIUS = 16;
 export const PATH_WIDTH = 32; 
 export const SHOOTER_SIZE = 50;
-export const PROJECTILE_SPEED = 35; // Aumentado de 25 para 35 para sensação mais rápida
+export const PROJECTILE_SPEED = 45; // Aumentado de 35 para 45 (mais rápido e responsivo)
 export const BASE_SPAWN_RATE = 50;
 
 export const COLORS = [
@@ -208,8 +208,8 @@ export const LEVELS: LevelConfig[] = Array.from({ length: 1000 }, (_, i) => {
       'super-ellipse'
   ];
   
-  // Speed curve: Increased slightly for faster gameplay
-  const speedMultiplier = 0.4 + (Math.log(difficulty + 5) / Math.log(1000)) * 0.8;
+  // Speed curve: Increased base speed from 0.4 to 0.6 for faster start
+  const speedMultiplier = 0.6 + (Math.log(difficulty + 5) / Math.log(1000)) * 0.9;
   
   const spawnCount = 30 + Math.floor(difficulty * 1.5);
 

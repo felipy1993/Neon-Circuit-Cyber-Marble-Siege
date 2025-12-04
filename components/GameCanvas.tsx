@@ -185,7 +185,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     
     // Set Dimensions with DPI Awareness (Retina Support)
     const resize = () => {
-        const dpr = window.devicePixelRatio || 1;
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
         const width = window.innerWidth;
         const height = window.innerHeight;
         
@@ -1099,6 +1099,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
   const handleTouchStart = (e: TouchEvent) => {
      if (isPaused) return;
+     if (e.cancelable) e.preventDefault();
      initAudio();
      const touch = e.touches[0];
      mousePosRef.current = { x: touch.clientX, y: touch.clientY };
@@ -1133,8 +1134,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     window.addEventListener('mousedown', handleClick);
     window.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('touchstart', handleTouchStart);
-    window.addEventListener('touchmove', handleTouchMove);
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
     
     return () => {
         cancelAnimationFrame(requestRef.current);

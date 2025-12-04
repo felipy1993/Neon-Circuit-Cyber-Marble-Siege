@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { requestFullscreen } from './utils/fullscreen';
 import { GameScreen, LevelConfig, PlayerState, PowerupType, UpgradeType, WallpaperId, RankConfig } from './types';
 import { LEVELS, SHOP_ITEMS, CREDITS_LEVEL_CLEAR, UPGRADES, WALLPAPERS, RANKS } from './constants';
 import GameCanvas, { GameCanvasRef } from './components/GameCanvas';
@@ -233,6 +234,7 @@ export default function App() {
 
           // 3. Sign In
           await signInWithEmailAndPassword(auth, emailToUse, password);
+          requestFullscreen(document.documentElement);
           // Auth listener handles the rest
       } catch (error: any) {
           if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
@@ -381,6 +383,7 @@ export default function App() {
   // --- GAME ACTIONS ---
 
   const startGame = (levelId: number) => {
+    requestFullscreen(document.documentElement);
     if (playerState.selectedWallpaper === WallpaperId.AUTO) {
         const availableWallpapers = WALLPAPERS.filter(w => w.id !== activeWallpaperId);
         const randomIndex = Math.floor(Math.random() * availableWallpapers.length);

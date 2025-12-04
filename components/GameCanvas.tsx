@@ -341,11 +341,11 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
         const timeInSeconds = frameCountRef.current / 60;
         // Reduced ramp up speed significantly (was 0.0035, now 0.0005)
-        const rampUp = 1 + (timeInSeconds * 0.0005); 
+        const rampUp = 1 + (timeInSeconds * 0.001); 
         const speedFactor = Math.min(rampUp, 2.0);
         
         // Reduced base multiplier (was 0.5, now 0.35)
-        const baseSpeed = (0.35 * levelConfig.speedMultiplier * speedFactor) * timeScale; 
+        const baseSpeed = (0.6 * levelConfig.speedMultiplier * speedFactor) * timeScale; 
         const reverseSpeedMax = (-6.0 * reverseForceMultiplier) * timeScale;
         const forcedReverseSpeed = (-3.0 * reverseForceMultiplier) * timeScale; 
 

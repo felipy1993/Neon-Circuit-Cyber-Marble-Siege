@@ -78,10 +78,20 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
     // FPS Tracking
     const lastTimeRef = useRef(0);
     const fpsRef = useRef(60);
+    const lastFrameTimeRef = useRef(0);
+    const isMobileRef = useRef(false);
 
     // Performance Throttling Refs
     const lastReportedScoreRef = useRef(0);
     const lastReportedProgressRef = useRef(0);
+
+    // Detect mobile on mount
+    useEffect(() => {
+      isMobileRef.current =
+        /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+          navigator.userAgent
+        );
+    }, []);
 
     // Game Stats calculated from Upgrades
     const projectileSpeed = PROJECTILE_SPEED + upgrades[UpgradeType.SPEED] * 3;
@@ -334,6 +344,18 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
           fpsRef.current = fpsRef.current * 0.9 + instantFps * 0.1;
         }
         lastTimeRef.current = time;
+
+        // Frame throttling for mobile (limit to 30fps on mobile to save battery)
+        const targetFPS = isMobileRef.current ? 30 : 60;
+        const frameTime = 1000 / targetFPS;
+        const timeSinceLastFrame = time - lastFrameTimeRef.current;
+
+        if (timeSinceLastFrame < frameTime) {
+          requestRef.current = requestAnimationFrame(animate);
+          return;
+        }
+
+        lastFrameTimeRef.current = time;
 
         // Decay Screen Shake
         if (shakeRef.current > 0) shakeRef.current *= 0.9;
@@ -1263,7 +1285,13 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
     const handleMouseMove = (e: MouseEvent) => {
       if (isPaused) return;
       initAudio();
-      mousePosRef.current = { x: e.clientX, y: e.clientY };
+      if (!canvasRef.current) return;
+      const rect = canvasRef.current.getBoundingClientRect();
+      // Convert to logical canvas coordinates
+      mousePosRef.current = {
+        x: (e.clientX - rect.left) / (rect.width / canvasRef.current.width),
+        y: (e.clientY - rect.top) / (rect.height / canvasRef.current.height),
+      };
     };
 
     const handleClick = (e: MouseEvent) => {
@@ -1344,7 +1372,6 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
     const handleTouchMove = (e: TouchEvent) => {
       if (isPaused) return;
       const touch = e.touches[0];
-      mousePosRef.current = { x: touch.clientX, y: touch.clientY };
 
       // Only prevent default if we're actually in the game area
       if (canvasRef.current) {
@@ -1356,6 +1383,16 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
           touch.clientY <= rect.bottom
         ) {
           if (e.cancelable) e.preventDefault();
+
+          // Update shooter aim with correct coordinates
+          mousePosRef.current = {
+            x:
+              (touch.clientX - rect.left) /
+              (rect.width / canvasRef.current.width),
+            y:
+              (touch.clientY - rect.top) /
+              (rect.height / canvasRef.current.height),
+          };
         }
       }
     };

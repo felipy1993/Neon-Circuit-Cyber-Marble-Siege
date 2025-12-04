@@ -2,30 +2,41 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, minimal-ui"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <title>Neon Circuit: Cyber Marble Siege</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
     <style>
       body {
-        font-family: 'Rajdhani', sans-serif;
+        font-family: "Rajdhani", sans-serif;
         background-color: #050510;
         overflow: hidden;
         touch-action: none;
       }
       .font-display {
-        font-family: 'Orbitron', sans-serif;
+        font-family: "Orbitron", sans-serif;
       }
       /* Custom Scrollbar for level select */
       ::-webkit-scrollbar {
         width: 8px;
       }
       ::-webkit-scrollbar-track {
-        background: #111; 
+        background: #111;
       }
       ::-webkit-scrollbar-thumb {
-        background: #00f0ff; 
+        background: #00f0ff;
         border-radius: 4px;
       }
       .neon-text-shadow {
@@ -56,22 +67,58 @@
         animation: glitch-anim-2 3s infinite linear alternate-reverse;
       }
       @keyframes glitch-anim-1 {
-        0% { clip-path: inset(20% 0 80% 0); transform: translate(-2px, 0); }
-        20% { clip-path: inset(60% 0 10% 0); transform: translate(2px, 0); }
-        40% { clip-path: inset(40% 0 50% 0); transform: translate(-2px, 0); }
-        60% { clip-path: inset(80% 0 5% 0); transform: translate(2px, 0); }
-        80% { clip-path: inset(10% 0 60% 0); transform: translate(-2px, 0); }
-        100% { clip-path: inset(30% 0 20% 0); transform: translate(2px, 0); }
+        0% {
+          clip-path: inset(20% 0 80% 0);
+          transform: translate(-2px, 0);
+        }
+        20% {
+          clip-path: inset(60% 0 10% 0);
+          transform: translate(2px, 0);
+        }
+        40% {
+          clip-path: inset(40% 0 50% 0);
+          transform: translate(-2px, 0);
+        }
+        60% {
+          clip-path: inset(80% 0 5% 0);
+          transform: translate(2px, 0);
+        }
+        80% {
+          clip-path: inset(10% 0 60% 0);
+          transform: translate(-2px, 0);
+        }
+        100% {
+          clip-path: inset(30% 0 20% 0);
+          transform: translate(2px, 0);
+        }
       }
       @keyframes glitch-anim-2 {
-        0% { clip-path: inset(10% 0 60% 0); transform: translate(2px, 0); }
-        20% { clip-path: inset(30% 0 20% 0); transform: translate(-2px, 0); }
-        40% { clip-path: inset(70% 0 10% 0); transform: translate(2px, 0); }
-        60% { clip-path: inset(20% 0 50% 0); transform: translate(-2px, 0); }
-        80% { clip-path: inset(50% 0 30% 0); transform: translate(2px, 0); }
-        100% { clip-path: inset(0% 0 80% 0); transform: translate(-2px, 0); }
+        0% {
+          clip-path: inset(10% 0 60% 0);
+          transform: translate(2px, 0);
+        }
+        20% {
+          clip-path: inset(30% 0 20% 0);
+          transform: translate(-2px, 0);
+        }
+        40% {
+          clip-path: inset(70% 0 10% 0);
+          transform: translate(2px, 0);
+        }
+        60% {
+          clip-path: inset(20% 0 50% 0);
+          transform: translate(-2px, 0);
+        }
+        80% {
+          clip-path: inset(50% 0 30% 0);
+          transform: translate(2px, 0);
+        }
+        100% {
+          clip-path: inset(0% 0 80% 0);
+          transform: translate(-2px, 0);
+        }
       }
-      
+
       /* Safe Area Support for Notched Devices */
       @supports (padding: max(0px)) {
         body {
@@ -80,35 +127,58 @@
           padding-bottom: env(safe-area-inset-bottom);
         }
       }
-      
+
       /* Responsive Text Sizing */
       @media (max-width: 640px) {
         .font-display {
           font-size: clamp(1rem, 4vw, 2rem);
         }
       }
-      
+
       /* Touch-Friendly Buttons */
-      button, a, input[type="submit"] {
+      button,
+      a,
+      input[type="submit"] {
         min-height: 44px;
         min-width: 44px;
       }
+
+      /* Prevent zoom on input focus (mobile) */
+      input,
+      textarea,
+      select {
+        font-size: 16px !important;
+      }
+
+      /* Fullscreen mobile experience */
+      html,
+      body,
+      #root {
+        width: 100%;
+        height: 100%;
+        position: fixed;
+      }
+
+      /* Prevent layout shift on scroll */
+      * {
+        -webkit-tap-highlight-color: transparent;
+      }
     </style>
-  <script type="importmap">
-{
-  "imports": {
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
-    "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
-  }
-}
-</script>
-</head>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "https://aistudiocdn.com/react@^19.2.0",
+          "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0/",
+          "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+          "react/": "https://aistudiocdn.com/react@^19.2.0/",
+          "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
+          "firebase/": "https://aistudiocdn.com/firebase@^12.6.0/"
+        }
+      }
+    </script>
+  </head>
   <body class="text-white selection:bg-cyan-500 selection:text-black">
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
   </body>
 </html>

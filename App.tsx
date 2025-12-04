@@ -573,8 +573,8 @@ export default function App() {
                 <div className="w-full max-w-md p-8 bg-slate-900 border-2 border-cyan-500 rounded-xl shadow-[0_0_50px_rgba(6,182,212,0.3)] relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500 animate-pulse"></div>
                     
-                    <h2 className="text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#00f0ff'}}>ACESSO AO SISTEMA</h2>
-                    <p className="text-slate-400 text-center mb-8">Autenticação de Operador Requerida</p>
+                    <h2 className="text-2xl sm:text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#00f0ff'}}>ACESSO AO SISTEMA</h2>
+                    <p className="text-sm sm:text-base text-slate-400 text-center mb-6 sm:mb-8">Autenticação de Operador Requerida</p>
 
                     <form onSubmit={handleLogin} className="flex flex-col gap-4">
                         <div className="relative">
@@ -633,8 +633,8 @@ export default function App() {
                 <div className="w-full max-w-md p-8 bg-slate-900 border-2 border-yellow-400 rounded-xl shadow-[0_0_50px_rgba(250,204,21,0.2)] relative overflow-hidden">
                     <div className="absolute top-0 left-0 w-full h-1 bg-yellow-400"></div>
                     
-                    <h2 className="text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#facc15'}}>REGISTRO DE AGENTE</h2>
-                    <p className="text-slate-400 text-center mb-8">Criar Nova Identidade Digital</p>
+                    <h2 className="text-2xl sm:text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#facc15'}}>REGISTRO DE AGENTE</h2>
+                    <p className="text-sm sm:text-base text-slate-400 text-center mb-6 sm:mb-8">Criar Nova Identidade Digital</p>
 
                     <form onSubmit={handleRegister} className="flex flex-col gap-4">
                         <div className="relative">
@@ -694,10 +694,10 @@ export default function App() {
       case GameScreen.MENU:
         return (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-20 backdrop-blur-sm">
-            <div className="text-6xl md:text-8xl font-display font-bold glitch mb-2 text-center" data-text="NEON CIRCUIT" style={{ textShadow: `0 0 10px ${currentWallpaper.primaryColor}` }}>
+            <div className="text-4xl sm:text-6xl md:text-8xl font-display font-bold glitch mb-2 text-center px-4" data-text="NEON CIRCUIT" style={{ textShadow: `0 0 10px ${currentWallpaper.primaryColor}` }}>
               NEON CIRCUIT
             </div>
-            <p className="tracking-widest mb-8 text-xl font-bold font-display text-center neon-text-shadow" style={{ color: currentWallpaper.primaryColor }}>
+            <p className="tracking-widest mb-6 sm:mb-8 text-base sm:text-xl font-bold font-display text-center neon-text-shadow px-4" style={{ color: currentWallpaper.primaryColor }}>
               CYBER MARBLE SIEGE
             </p>
 

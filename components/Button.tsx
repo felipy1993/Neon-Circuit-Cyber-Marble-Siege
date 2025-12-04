@@ -6,7 +6,7 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const Button: React.FC<ButtonProps> = ({ variant = 'primary', children, className = '', ...props }) => {
-  const baseStyle = "font-display text-lg px-8 py-3 uppercase tracking-widest transition-all duration-200 clip-path-slant focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 flex items-center justify-center";
+  const baseStyle = "font-display text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 min-h-[44px] uppercase tracking-widest transition-all duration-200 clip-path-slant focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed transform hover:scale-105 active:scale-95 flex items-center justify-center";
   
   // Note: For advanced theming, we rely on the parent to style, or these defaults which match the Classic theme perfectly.
   // The 'primary' variant uses cyan, 'secondary' uses magenta.

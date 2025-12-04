@@ -1,3 +1,4 @@
+
 import { Point } from '../types';
 
 export const getDistance = (p1: Point, p2: Point) => {
@@ -32,7 +33,21 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
   const cx = genWidth / 2;
   const cy = genHeight / 2;
   const minDim = Math.min(genWidth, genHeight);
-  const scale = minDim * 0.4;
+  
+  // Base scale increased from 0.4 to 0.45 to fill more screen
+  let scale = minDim * 0.45;
+
+  // Mobile specific boosts for "thin" maps that look too small when rotated
+  if (isPortrait) {
+      if (type === 'infinity') scale *= 1.6;
+      if (type === 'bow') scale *= 1.5;
+      if (type === 'sine') scale *= 1.5;
+      if (type === 'snake') scale *= 1.5;
+      // Hourglass is limited by width, so we can't boost it much without clipping
+  }
+
+  // Reduce padding on mobile to use full vertical height
+  const edgePadding = isPortrait ? 30 : 50;
 
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
@@ -62,7 +77,7 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
         
       case 'sine':
          // Use genWidth to ensure full length usage
-         x = interpolate(50, genWidth - 50, t);
+         x = interpolate(edgePadding, genWidth - edgePadding, t);
          y = cy + Math.sin(t * Math.PI * 8) * (scale * 0.6);
          break;
 
@@ -153,7 +168,7 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
       case 'snake':
         // Zig Zag / Snake pattern
         // Maps X linearly, oscillates Y
-        x = interpolate(50, genWidth - 50, t);
+        x = interpolate(edgePadding, genWidth - edgePadding, t);
         // Frequency increases slightly
         y = cy + Math.sin(t * Math.PI * 12) * (scale * 0.7);
         break;

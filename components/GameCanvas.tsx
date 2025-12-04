@@ -59,6 +59,9 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const lastTimeRef = useRef(0);
   const fpsRef = useRef(60);
 
+  // Input Handling Refs
+  const lastShotTimeRef = useRef(0);
+
   // Performance Throttling Refs
   const lastReportedScoreRef = useRef(0);
   const lastReportedProgressRef = useRef(0);
@@ -254,6 +257,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     comboStreakRef.current = 0;
     frameCountRef.current = 0;
     lastTimeRef.current = performance.now();
+    lastShotTimeRef.current = 0;
     
     lastReportedScoreRef.current = 0;
     lastReportedProgressRef.current = 0;
@@ -1100,6 +1104,12 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   
   const handleClick = (e: MouseEvent) => {
       if (!canvasRef.current || isPaused) return; 
+      
+      // Debounce logic to prevent double-firing (touch + mouse emulation)
+      const now = Date.now();
+      if (now - lastShotTimeRef.current < 150) return;
+      lastShotTimeRef.current = now;
+
       initAudio();
       
       const rect = canvasRef.current.getBoundingClientRect();
@@ -1148,6 +1158,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   
   const handleTouchMove = (e: TouchEvent) => {
      if (isPaused) return;
+     // Stop scrolling/zooming on mobile while playing
+     if (e.cancelable) e.preventDefault();
      const touch = e.touches[0];
      mousePosRef.current = { x: touch.clientX, y: touch.clientY };
   };
@@ -1174,8 +1186,10 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     window.addEventListener('mousedown', handleClick);
     window.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('touchstart', handleTouchStart);
-    window.addEventListener('touchmove', handleTouchMove);
+    
+    // Add non-passive listeners for touch to allow prevention of defaults (scrolling)
+    window.addEventListener('touchstart', handleTouchStart, { passive: false });
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
     
     return () => {
         cancelAnimationFrame(requestRef.current);

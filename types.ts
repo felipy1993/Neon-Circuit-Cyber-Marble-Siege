@@ -168,6 +168,6 @@ export interface LevelConfig {
   speedMultiplier: number;
   colors: MarbleColor[];
   spawnCount: number;
-  pathType: 'spiral' | 'sine' | 'infinity' | 'circle' | 'complex';
+  pathType: 'spiral' | 'sine' | 'infinity' | 'circle' | 'complex' | 'star' | 'diamond' | 'hourglass' | 'gear' | 'super-ellipse';
   mapScale: number;
 }

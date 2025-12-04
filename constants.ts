@@ -194,8 +194,19 @@ export const LEVELS: LevelConfig[] = Array.from({ length: 1000 }, (_, i) => {
 
   const levelColors = COLORS.slice(0, colorCount);
 
-  // Path types rotate
-  const pathTypes: LevelConfig['pathType'][] = ['circle', 'infinity', 'spiral', 'sine', 'complex'];
+  // Path types rotate (10 VARIATIONS NOW)
+  const pathTypes: LevelConfig['pathType'][] = [
+      'circle', 
+      'star', 
+      'infinity', 
+      'diamond', 
+      'spiral', 
+      'hourglass', 
+      'sine', 
+      'gear', 
+      'complex', 
+      'super-ellipse'
+  ];
   
   // Speed curve: Increased slightly for faster gameplay
   const speedMultiplier = 0.4 + (Math.log(difficulty + 5) / Math.log(1000)) * 0.8;

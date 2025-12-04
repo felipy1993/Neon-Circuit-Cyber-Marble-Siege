@@ -70,6 +70,41 @@
         80% { clip-path: inset(50% 0 30% 0); transform: translate(2px, 0); }
         100% { clip-path: inset(0% 0 80% 0); transform: translate(-2px, 0); }
       }
+      
+      /* RGB Border Animation - Clean Style */
+      .rgb-border {
+        position: relative;
+        background: transparent;
+        border-radius: 0.75rem;
+        z-index: 1;
+      }
+      /* Creates the thin border line behind the main element */
+      .rgb-border::before {
+        content: '';
+        position: absolute;
+        inset: -2px; /* Controls border thickness (2px) */
+        background: linear-gradient(45deg, #00f0ff, #ff00ff, #f0ff00, #00ff41, #00f0ff);
+        background-size: 300%;
+        z-index: -2;
+        border-radius: calc(0.75rem + 2px); /* Adjust radius to match parent */
+        animation: rgb-glow 4s linear infinite;
+      }
+      
+      /* Creates the background mask to ensure content is readable and border is only on edge */
+      .rgb-border::after {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: #0f172a;
+        border-radius: 0.75rem;
+        z-index: -1;
+      }
+      
+      @keyframes rgb-glow {
+        0% { background-position: 0 0; }
+        50% { background-position: 300% 0; }
+        100% { background-position: 0 0; }
+      }
     </style>
   <script type="importmap">
 {

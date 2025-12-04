@@ -146,24 +146,27 @@ export default function App() {
 
   // --- DATABASE SYNC HELPER ---
   // We only save to DB on specific checkpoints to save writes/reads
-  const saveToFirebase = async (newState: PlayerState) => {
+  const saveToFirebase = useCallback(async (newState: PlayerState) => {
       if (!user) return;
       try {
           // Calculate total score before saving
           const totalScore = Object.values(newState.highScores).reduce((a: number, b: number) => a + b, 0);
           const dataToSave = { ...newState, totalScore };
-          await setDoc(doc(db, "players", user.uid), dataToSave);
+          // merge: true ensures we don't accidentally wipe data if we save a partial state (safety)
+          await setDoc(doc(db, "players", user.uid), dataToSave, { merge: true });
       } catch (e) {
           console.error("Error saving to cloud:", e);
       }
-  };
+  }, [user]);
 
   const fetchLeaderboard = async () => {
     setLoadingLeaderboard(true);
     try {
         const playersRef = collection(db, "players");
-        // Fetches players. We filter empty names or 0 scores client side to keep it clean.
-        const q = query(playersRef, limit(100)); 
+        // Fetches players. 
+        // IMPORTANT: Requires a Firestore composite index on 'totalScore' DESC. 
+        // If it fails, check console for the link to create index.
+        const q = query(playersRef, orderBy("totalScore", "desc"), limit(50)); 
         const querySnapshot = await getDocs(q);
         
         const data = querySnapshot.docs.map(doc => {
@@ -185,10 +188,10 @@ export default function App() {
         })
         .filter(p => p.score > 0); // Only show players who have actually played
 
-        // Client-side sort
+        // Client-side fallback sort (redundant if DB sort works, but safe)
         data.sort((a, b) => b.score - a.score);
 
-        setLeaderboardData(data.slice(0, 50)); // Top 50
+        setLeaderboardData(data); 
     } catch (error) {
         console.error("Error loading leaderboard:", error);
     } finally {
@@ -343,7 +346,7 @@ export default function App() {
     if (screen === GameScreen.MENU && !showDailyBonus && playerState.lastLoginDate !== new Date().toISOString().split('T')[0] && user) {
         checkDailyBonus();
     }
-  }, [playerState.lastLoginDate, screen, user]);
+  }, [playerState.lastLoginDate, screen, user, saveToFirebase]);
 
   const claimDailyBonus = () => {
       if (!dailyReward) return;
@@ -441,6 +444,7 @@ export default function App() {
         newState.totalScore = Object.values(newState.highScores).reduce((a: number, b: number) => a + b, 0);
 
         // SAVE TO CLOUD
+        // Now using the memoized function that has the correct User closure
         saveToFirebase(newState);
         return newState;
     });
@@ -450,7 +454,7 @@ export default function App() {
     } else {
       setScreen(GameScreen.GAME_OVER);
     }
-  }, [currentLevelId]); // Depends on currentLevelId
+  }, [currentLevelId, saveToFirebase]); // Added saveToFirebase to dependencies to avoid stale closure
   
   const handleCreditsEarned = useCallback((amount: number) => {
       // We don't save to DB on every credit earn during game loop, just update state
@@ -570,8 +574,7 @@ export default function App() {
       case GameScreen.LOGIN:
         return (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-50 backdrop-blur-md">
-                <div className="w-full max-w-md p-8 bg-slate-900 border-2 border-cyan-500 rounded-xl shadow-[0_0_50px_rgba(6,182,212,0.3)] relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-cyan-500 animate-pulse"></div>
+                <div className="w-full max-w-md p-8 rgb-border shadow-2xl relative">
                     
                     <h2 className="text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#00f0ff'}}>ACESSO AO SISTEMA</h2>
                     <p className="text-slate-400 text-center mb-8">Autenticação de Operador Requerida</p>
@@ -630,8 +633,7 @@ export default function App() {
       case GameScreen.REGISTER:
         return (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 z-50 backdrop-blur-md">
-                <div className="w-full max-w-md p-8 bg-slate-900 border-2 border-yellow-400 rounded-xl shadow-[0_0_50px_rgba(250,204,21,0.2)] relative overflow-hidden">
-                    <div className="absolute top-0 left-0 w-full h-1 bg-yellow-400"></div>
+                <div className="w-full max-w-md p-8 rgb-border shadow-2xl relative">
                     
                     <h2 className="text-4xl font-display text-center text-white mb-2 neon-text-shadow" style={{color: '#facc15'}}>REGISTRO DE AGENTE</h2>
                     <p className="text-slate-400 text-center mb-8">Criar Nova Identidade Digital</p>

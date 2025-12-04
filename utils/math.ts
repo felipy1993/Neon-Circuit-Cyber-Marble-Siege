@@ -50,11 +50,74 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
          break;
 
       case 'complex':
-        const k = 4;
-        const angleX = t * Math.PI * 2 * k;
-        const rX = scale * Math.cos(k * angleX) * (1 - t * 0.5) + (scale * 0.5);
-        x = cx + rX * Math.cos(t * Math.PI * 4);
-        y = cy + rX * Math.sin(t * Math.PI * 4);
+        // Modified 'complex' type: "Cyber-Clover Spiral"
+        const angleCpx = t * Math.PI * 2;
+        const shapeMod = 0.4 * Math.pow(Math.sin(2 * angleCpx), 2);
+        const spiralFactor = 1.15 - (t * 0.55);
+        const rCpx = scale * (0.8 + shapeMod) * spiralFactor;
+        x = cx + Math.cos(angleCpx) * rCpx;
+        y = cy + Math.sin(angleCpx) * rCpx;
+        break;
+        
+      case 'star':
+        // 5-Pointed Star Pattern
+        // It spirals slightly inward to ensure start/end don't touch
+        const angleStar = t * Math.PI * 2;
+        const lobes = 5;
+        // The radius oscillates to create points
+        const rBaseStar = scale * (1.0 - t * 0.3); // Slight spiral in
+        const rStar = rBaseStar * (0.6 + 0.4 * Math.cos(lobes * angleStar));
+        // Rotate -PI/2 to make top point upwards
+        x = cx + Math.cos(angleStar - Math.PI/2) * rStar;
+        y = cy + Math.sin(angleStar - Math.PI/2) * rStar;
+        break;
+
+      case 'diamond':
+        // Astroid Shape (Concave Diamond)
+        const angleD = t * Math.PI * 2;
+        const rD = scale * (1.0 - t * 0.2);
+        // x = a cos^3 t, y = a sin^3 t
+        x = cx + rD * Math.pow(Math.cos(angleD), 3);
+        y = cy + rD * Math.pow(Math.sin(angleD), 3);
+        break;
+
+      case 'hourglass':
+        // Vertical Figure-8 (Lissajous)
+        const tH = t * Math.PI * 2;
+        // x = A * sin(t) * cos(t) (Horizontal oscillation narrow)
+        // y = B * sin(t) (Vertical oscillation wide)
+        const rH = scale * (1.0 - t * 0.1); 
+        x = cx + (rH * 1.0) * Math.sin(tH) * Math.cos(tH); 
+        y = cy + (rH * 1.2) * Math.sin(tH);
+        break;
+
+      case 'gear':
+        // Mechanical Gear shape
+        const angleG = t * Math.PI * 2;
+        const teeth = 8;
+        const rGearBase = scale * (1.0 - t * 0.6); // Strong spiral in
+        // Square wave or sine wave on radius
+        const rGear = rGearBase * (0.85 + 0.15 * Math.sin(teeth * angleG));
+        x = cx + Math.cos(angleG) * rGear;
+        y = cy + Math.sin(angleG) * rGear;
+        break;
+
+      case 'super-ellipse':
+        // Rounded Square (Squircle)
+        const angleSE = t * Math.PI * 2;
+        const n = 4; // Higher n = more square
+        const rSEBase = scale * (1.0 - t * 0.4);
+        
+        const cosT = Math.cos(angleSE);
+        const sinT = Math.sin(angleSE);
+        
+        // Polar form of Superellipse: r = ab / ( |b cos|^n + |a sin|^n )^(1/n)
+        // Assuming a=b=rSEBase
+        const den = Math.pow(Math.abs(cosT), n) + Math.pow(Math.abs(sinT), n);
+        const rSE = rSEBase / Math.pow(den, 1/n);
+        
+        x = cx + cosT * rSE;
+        y = cy + sinT * rSE;
         break;
 
       default:
@@ -81,57 +144,9 @@ export const generatePathPoints = (type: string, width: number, height: number, 
   }
 
   // 3. Resample to ensure points are evenly spaced
-  // We aim for roughly the same number of points to keep resolution high
   const uniformPoints: Point[] = [rawPoints[0]];
   const targetStep = totalLength / steps;
   
-  let currentDist = 0;
-  let nextTarget = targetStep;
-  let segmentIdx = 0;
-  let segmentCovered = 0; // Distance covered within the current segment
-
-  // Iterate to find points at exact intervals
-  while (segmentIdx < segmentLengths.length && uniformPoints.length < steps + 1) {
-    const segLen = segmentLengths[segmentIdx];
-    
-    // While the next target distance is within the current segment
-    while (segmentCovered + segLen >= nextTarget - currentDist) {
-        // How far into this segment is the target?
-        const remainingToTarget = nextTarget - currentDist;
-        const ratio = (remainingToTarget - segmentCovered) / segLen; // This needs to be relative to segment start
-        
-        // Correct math:
-        // Absolute distance of target is `nextTarget`
-        // Absolute distance of segment start is `currentDist + segmentCovered`
-        // Distance into segment = `nextTarget - (currentDist + segmentCovered)`
-        const distIntoSegment = nextTarget - (currentDist + segmentCovered);
-        const t = Math.max(0, Math.min(1, distIntoSegment / segLen));
-
-        const p1 = rawPoints[segmentIdx];
-        const p2 = rawPoints[segmentIdx + 1];
-        
-        uniformPoints.push({
-            x: p1.x + (p2.x - p1.x) * t,
-            y: p1.y + (p2.y - p1.y) * t
-        });
-        
-        nextTarget += targetStep;
-        
-        if (nextTarget > totalLength) break;
-    }
-
-    currentDist += segLen; // Move base cursor to end of this segment (approx) - actually we track absolute
-    // To be precise:
-    // We processed segment `segmentIdx`.
-    // We update our tracking.
-    // Instead of complex tracking, let's simplify logic:
-    
-    segmentIdx++;
-    segmentCovered = 0; // Reset for next segment? No, we need absolute tracking.
-  }
-  
-  // Re-implementation of simpler resampling loop for robustness:
-  const refinedPoints: Point[] = [rawPoints[0]];
   let accumulatedDist = 0;
   let targetD = targetStep;
   
@@ -142,7 +157,7 @@ export const generatePathPoints = (type: string, width: number, height: number, 
           const t = (targetD - accumulatedDist) / len;
           const p1 = rawPoints[i];
           const p2 = rawPoints[i+1];
-          refinedPoints.push({
+          uniformPoints.push({
               x: p1.x + (p2.x - p1.x) * t,
               y: p1.y + (p2.y - p1.y) * t
           });
@@ -152,9 +167,9 @@ export const generatePathPoints = (type: string, width: number, height: number, 
   }
   
   // Ensure last point is included
-  refinedPoints.push(rawPoints[rawPoints.length - 1]);
+  uniformPoints.push(rawPoints[rawPoints.length - 1]);
 
-  return refinedPoints;
+  return uniformPoints;
 };
 
 export const getPathLength = (points: Point[]): number => {

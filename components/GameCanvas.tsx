@@ -1270,12 +1270,22 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
       if (!canvasRef.current || isPaused) return;
       initAudio();
 
-      const rect = canvasRef.current.getBoundingClientRect();
-      const cx = rect.width / 2;
-      const cy = rect.height / 2;
+      const canvas = canvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      
+      // Convert viewport coordinates to logical canvas coordinates
+      const logicalX = (e.clientX - rect.left) / (rect.width / canvas.width);
+      const logicalY = (e.clientY - rect.top) / (rect.height / canvas.height);
+      
+      const logicalWidth = canvas.width / dpr;
+      const logicalHeight = canvas.height / dpr;
+      
+      const cx = logicalWidth / 2;
+      const cy = logicalHeight / 2;
 
-      const dx = e.clientX - cx;
-      const dy = e.clientY - cy;
+      const dx = logicalX - cx;
+      const dy = logicalY - cy;
       const dist = Math.sqrt(dx * dx + dy * dy);
 
       if (dist < 60) {
@@ -1283,7 +1293,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(
         return;
       }
 
-      const angle = Math.atan2(e.clientY - cy, e.clientX - cx);
+      const angle = Math.atan2(logicalY - cy, logicalX - cx);
 
       projectilesRef.current.push({
         id: Math.random().toString(),

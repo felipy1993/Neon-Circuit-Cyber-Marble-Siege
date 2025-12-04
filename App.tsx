@@ -1724,10 +1724,11 @@ export default function App() {
               </div>
             </div>
 
+            {/* Shop / Powerups: mobile -> bottom horizontal, md+ -> right vertical */}
             <div
-              className={`absolute right-0 top-1/2 -translate-y-1/2 z-40 p-2 flex flex-col gap-3 pointer-events-auto transition-opacity duration-300 ${
+              className={`absolute z-40 p-2 flex gap-3 pointer-events-auto transition-opacity duration-300 ${
                 isPaused ? "opacity-0 pointer-events-none" : "opacity-100"
-              }`}
+              } bottom-4 left-1/2 -translate-x-1/2 flex-row md:bottom-auto md:left-auto md:right-0 md:top-1/2 md:-translate-y-1/2 md:flex-col`}
             >
               {SHOP_ITEMS.map((item) => {
                 const owned = playerState.inventory[item.id] || 0;
@@ -1751,22 +1752,19 @@ export default function App() {
                     <button
                       onClick={() => handleSmartAction(item.id, item.price)}
                       disabled={!isActionable}
-                      className={`
-                                    relative flex flex-col items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-l-xl border-y border-l transition-all
-                                    ${
-                                      owned > 0
-                                        ? "bg-blue-900/80 border-white hover:bg-cyan-900"
-                                        : canAfford
-                                        ? "bg-slate-900/80 border-yellow-600 hover:bg-slate-800"
-                                        : "bg-black/60 border-slate-800 opacity-50 grayscale"
-                                    }
-                                `}
+                      className={`relative flex flex-col items-center justify-center w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl border transition-all ${
+                        owned > 0
+                          ? "bg-blue-900/80 border-white hover:bg-cyan-900"
+                          : canAfford
+                          ? "bg-slate-900/80 border-yellow-600 hover:bg-slate-800"
+                          : "bg-black/60 border-slate-800 opacity-50 grayscale"
+                      }`}
                       style={{
                         borderColor:
                           owned > 0 ? currentWallpaper.primaryColor : undefined,
                       }}
                     >
-                      <div className="text-xl md:text-2xl mb-1">
+                      <div className="text-lg sm:text-xl md:text-2xl mb-1">
                         {item.icon}
                       </div>
                       {owned > 0 ? (
@@ -1784,7 +1782,7 @@ export default function App() {
                         </div>
                       )}
 
-                      <div className="text-[7px] md:text-[8px] font-bold uppercase tracking-tighter">
+                      <div className="text-[8px] sm:text-[9px] md:text-[8px] font-bold uppercase tracking-tighter text-center">
                         {owned > 0 ? "ATIVAR" : "COMPRAR"}
                       </div>
                     </button>
@@ -1793,7 +1791,7 @@ export default function App() {
               })}
             </div>
 
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xs md:max-w-md px-4 pointer-events-none z-40">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xs md:max-w-md px-4 pointer-events-none z-40" style={{ paddingBottom: 'env(safe-area-inset-bottom, 12px)' }}>
               <div className="h-3 bg-slate-900/80 rounded-full overflow-hidden border border-slate-600 shadow-lg relative">
                 <div
                   className="h-full transition-all duration-300"

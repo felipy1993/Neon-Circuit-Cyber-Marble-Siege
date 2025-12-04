@@ -445,8 +445,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
         // Aggressive acceleration logic
         const timeInSeconds = frameCountRef.current / 60;
-        // Increased ramp up from 0.0005 to 0.002 (0.2% per second acceleration)
-        const rampUp = 1 + (timeInSeconds * 0.002); 
+        // Adjusted ramp up to 0.001 (0.1% per second acceleration)
+        const rampUp = 1 + (timeInSeconds * 0.001); 
         const speedFactor = Math.min(rampUp, 3.0); // Higher cap (3x max speed)
         
         const dangerZone = pathLengthRef.current * 0.7;

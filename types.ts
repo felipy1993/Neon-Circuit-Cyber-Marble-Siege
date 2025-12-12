@@ -93,6 +93,9 @@ export interface PlayerState {
   lastLoginDate?: string; // ISO string YYYY-MM-DD
   loginStreak: number;
   
+  // Chest Progression Tracking
+  lastClaimedChestLevel: number; // Stores the highest level multiple of 5 claimed (e.g., 5, 10, 15)
+
   inventory: {
     [key in PowerupType]: number;
   };

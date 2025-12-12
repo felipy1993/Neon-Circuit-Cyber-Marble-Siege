@@ -15,6 +15,7 @@ const INITIAL_STATE: PlayerState = {
   tutorialCompleted: false,
   lastLoginDate: '',
   loginStreak: 0,
+  lastClaimedChestLevel: 0, // Default to 0 so players can claim level 5, 10, etc.
   inventory: {
     [PowerupType.EMP]: 0,
     [PowerupType.SLOW]: 0,
@@ -101,6 +102,7 @@ export default function App() {
 
   // Chest System State
   const [pendingChestReward, setPendingChestReward] = useState(false);
+  const [chestSourceLevel, setChestSourceLevel] = useState<number>(0); // Which level generated this chest
   const [selectedChestIndex, setSelectedChestIndex] = useState<number | null>(null);
   const [chestReward, setChestReward] = useState<ChestReward | null>(null);
 
@@ -129,7 +131,7 @@ export default function App() {
                 
                 if (docSnap.exists()) {
                     const data = docSnap.data() as PlayerState;
-                    // Merge with initial state to ensure new fields (like upgrades/skins) exist
+                    // Merge with initial state to ensure new fields (like upgrades/skins/lastClaimedChestLevel) exist
                     setPlayerState({
                         ...INITIAL_STATE,
                         ...data,
@@ -138,7 +140,8 @@ export default function App() {
                         upgrades: { ...INITIAL_STATE.upgrades, ...data.upgrades },
                         settings: { ...INITIAL_STATE.settings, ...data.settings },
                         ownedSkins: data.ownedSkins || [SkinId.DEFAULT],
-                        selectedSkin: data.selectedSkin || SkinId.DEFAULT
+                        selectedSkin: data.selectedSkin || SkinId.DEFAULT,
+                        lastClaimedChestLevel: data.lastClaimedChestLevel || 0 // Default to 0 if field missing
                     });
                     setScreen(GameScreen.MENU);
                 } else {
@@ -494,6 +497,7 @@ export default function App() {
                       [reward.powerup]: (newState.inventory[reward.powerup] || 0) + 1
                   }
               }
+              // We do NOT save LastClaimedChestLevel here, we save it on close to verify transaction
               saveToFirebase(newState);
               return newState;
           });
@@ -502,7 +506,24 @@ export default function App() {
 
   const closeChestModal = () => {
       setPendingChestReward(false);
-      // User stays on victory screen to proceed
+      
+      // Update the last claimed level pointer
+      // Only if the chest source level is higher than what we have recorded
+      if (chestSourceLevel > playerState.lastClaimedChestLevel) {
+          const newState = {
+              ...playerState,
+              lastClaimedChestLevel: chestSourceLevel
+          };
+          setPlayerState(newState);
+          saveToFirebase(newState);
+      }
+  };
+
+  const openRetroactiveChest = (level: number) => {
+      setChestSourceLevel(level);
+      setPendingChestReward(true);
+      setSelectedChestIndex(null);
+      setChestReward(null);
   };
 
   const handleGameOver = useCallback((finalScore: number, win: boolean) => {
@@ -516,11 +537,12 @@ export default function App() {
         earnedCredits = CREDITS_LEVEL_CLEAR + performanceBonus;
         setGameResultBonus(earnedCredits);
 
-        // CHEST CHECK - Logic moved outside of state updater to ensure reliability
+        // CHEST CHECK
         // Trigger if:
         // 1. It is the player's current progression frontier (unlockedLevels)
         // 2. It is a multiple of 5
         if (currentLevelId === playerState.unlockedLevels && currentLevelId % 5 === 0) {
+            setChestSourceLevel(currentLevelId);
             setPendingChestReward(true);
         }
     } else {
@@ -694,6 +716,29 @@ export default function App() {
       <div className="absolute inset-0 z-0 transition-opacity duration-700"
            style={{ background: currentWallpaper.previewGradient, opacity: 0.5 }}></div>
       
+      {/* GLOBAL CHEST OVERLAY */}
+      {pendingChestReward && (
+          <div className="absolute inset-0 z-[100] bg-black/95 backdrop-blur-lg flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
+              <div className="w-full max-w-4xl text-center">
+                  <h2 className="text-3xl md:text-5xl font-display text-yellow-400 mb-2 neon-text-shadow animate-pulse">RECOMPENSA DE MARCO</h2>
+                  <p className="text-slate-400 mb-12 text-lg">NÍVEL {chestSourceLevel} CONQUISTADO. ESCOLHA UM SUPRIMENTO.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                      {[0, 1, 2].map((idx) => {
+                          const isSelected = selectedChestIndex === idx;
+                          const isRevealed = chestReward !== null;
+                          if (isRevealed && !isSelected) { return (<div key={idx} className="opacity-30 scale-90 grayscale flex flex-col items-center justify-center border border-slate-700 rounded-xl p-8 bg-slate-900"><Box size={64} className="text-slate-500 mb-4" /></div>); }
+                          if (isRevealed && isSelected) {
+                              const rarityColor = chestReward.rarity === 'LEGENDARY' ? '#ff003c' : chestReward.rarity === 'EPIC' ? '#a855f7' : chestReward.rarity === 'RARE' ? '#00f0ff' : '#fbbf24';
+                              return (<div key={idx} className="animate-in zoom-in duration-500 border-2 rounded-xl p-8 bg-slate-800 flex flex-col items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.2)]" style={{ borderColor: rarityColor }}><div className="mb-4 relative"><Sparkles size={80} className="text-white animate-spin-slow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-50" /><Gift size={64} style={{ color: rarityColor }} /></div><div className="text-xl font-bold mb-2 text-white">{chestReward.rarity}</div><div className="text-3xl font-mono text-yellow-400 mb-2 flex items-center gap-2"><Coins size={24} /> {chestReward.credits}</div>{chestReward.powerup && (<div className="text-cyan-400 font-bold border-t border-slate-600 pt-2 mt-2 w-full text-center">+1 {chestReward.powerup}</div>)}</div>);
+                          }
+                          return (<button key={idx} onClick={() => handleOpenChest(idx)} className="group relative border-2 border-yellow-600/50 bg-slate-900/80 rounded-xl p-12 flex flex-col items-center justify-center hover:border-yellow-400 hover:bg-slate-800 hover:scale-105 transition-all cursor-pointer"><div className="absolute inset-0 bg-yellow-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div><Box size={80} className="text-yellow-600 group-hover:text-yellow-400 transition-colors mb-4" /><div className="font-display text-slate-500 group-hover:text-white">ABRIR</div></button>);
+                      })}
+                  </div>
+                  {chestReward && (<Button onClick={closeChestModal} className="animate-in fade-in slide-in-from-bottom-8"><div className="flex items-center gap-2">COLETAR <Check size={20} /></div></Button>)}
+              </div>
+          </div>
+      )}
+
       {screen === GameScreen.LOGIN && (
             <div className="absolute inset-0 bg-black/90 z-50 backdrop-blur-md overflow-y-auto">
                 <div className="min-h-full flex flex-col items-center justify-center p-4">
@@ -780,6 +825,27 @@ export default function App() {
                     <div className="w-full bg-black/50 h-1.5 rounded-full overflow-hidden mt-1"><div className="h-full" style={{ width: '100%', backgroundColor: currentRank.color, opacity: 0.5 }}></div></div>
                     <div className="text-[10px] text-slate-500 w-full text-right mt-1">SCORE TOTAL: {playerState.totalScore.toLocaleString()}</div>
                 </div>
+                
+                {/* RETROACTIVE CLAIM BUTTON */}
+                {(() => {
+                    const nextClaimTarget = playerState.lastClaimedChestLevel + 5;
+                    // If the user has beaten level 5 (unlocked 6), they can claim 5.
+                    // unlockedLevels is 1-based, represents the level they are ABOUT to play.
+                    // So if unlockedLevels = 6, they completed 5.
+                    const maxCompleted = playerState.unlockedLevels - 1;
+                    
+                    if (nextClaimTarget <= maxCompleted) {
+                        return (
+                             <div className="mb-4 animate-bounce">
+                                <Button variant="primary" onClick={() => openRetroactiveChest(nextClaimTarget)} className="bg-yellow-500 text-black hover:bg-yellow-400 border-2 border-yellow-200">
+                                    <div className="flex items-center gap-2 font-bold"><Gift size={20} /> SUPRIMENTO NIVEL {nextClaimTarget}</div>
+                                </Button>
+                             </div>
+                        );
+                    }
+                    return null;
+                })()}
+
                 <div className="flex flex-col gap-4 w-72">
                   <Button onClick={() => startGame(playerState.unlockedLevels)}><div className="flex items-center justify-center gap-2"><Play size={20} /> INICIAR HACK</div></Button>
                   <Button variant="secondary" onClick={() => setScreen(GameScreen.LEVEL_SELECT)}><div className="flex items-center justify-center gap-2"><Grid size={20} /> SELEÇÃO DE SETOR</div></Button>
@@ -964,27 +1030,7 @@ export default function App() {
 
       {screen === GameScreen.VICTORY && (
           <>
-          {pendingChestReward && (
-              <div className="absolute inset-0 z-[100] bg-black/95 backdrop-blur-lg flex flex-col items-center justify-center p-4">
-                  <div className="w-full max-w-4xl text-center">
-                      <h2 className="text-3xl md:text-5xl font-display text-yellow-400 mb-2 neon-text-shadow animate-pulse">RECOMPENSA DE MARCO</h2>
-                      <p className="text-slate-400 mb-12 text-lg">NÍVEL {currentLevelId} CONQUISTADO. ESCOLHA UM SUPRIMENTO.</p>
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                          {[0, 1, 2].map((idx) => {
-                              const isSelected = selectedChestIndex === idx;
-                              const isRevealed = chestReward !== null;
-                              if (isRevealed && !isSelected) { return (<div key={idx} className="opacity-30 scale-90 grayscale flex flex-col items-center justify-center border border-slate-700 rounded-xl p-8 bg-slate-900"><Box size={64} className="text-slate-500 mb-4" /></div>); }
-                              if (isRevealed && isSelected) {
-                                  const rarityColor = chestReward.rarity === 'LEGENDARY' ? '#ff003c' : chestReward.rarity === 'EPIC' ? '#a855f7' : chestReward.rarity === 'RARE' ? '#00f0ff' : '#fbbf24';
-                                  return (<div key={idx} className="animate-in zoom-in duration-500 border-2 rounded-xl p-8 bg-slate-800 flex flex-col items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.2)]" style={{ borderColor: rarityColor }}><div className="mb-4 relative"><Sparkles size={80} className="text-white animate-spin-slow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-50" /><Gift size={64} style={{ color: rarityColor }} /></div><div className="text-xl font-bold mb-2 text-white">{chestReward.rarity}</div><div className="text-3xl font-mono text-yellow-400 mb-2 flex items-center gap-2"><Coins size={24} /> {chestReward.credits}</div>{chestReward.powerup && (<div className="text-cyan-400 font-bold border-t border-slate-600 pt-2 mt-2 w-full text-center">+1 {chestReward.powerup}</div>)}</div>);
-                              }
-                              return (<button key={idx} onClick={() => handleOpenChest(idx)} className="group relative border-2 border-yellow-600/50 bg-slate-900/80 rounded-xl p-12 flex flex-col items-center justify-center hover:border-yellow-400 hover:bg-slate-800 hover:scale-105 transition-all cursor-pointer"><div className="absolute inset-0 bg-yellow-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div><Box size={80} className="text-yellow-600 group-hover:text-yellow-400 transition-colors mb-4" /><div className="font-display text-slate-500 group-hover:text-white">ABRIR</div></button>);
-                          })}
-                      </div>
-                      {chestReward && (<Button onClick={closeChestModal} className="animate-in fade-in slide-in-from-bottom-8"><div className="flex items-center gap-2">COLETAR <Check size={20} /></div></Button>)}
-                  </div>
-              </div>
-          )}
+          {/* NOTE: Chest Modal moved to global scope */}
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/80 z-50 backdrop-blur-sm">
              <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
              <h2 className="text-5xl font-display mb-2 neon-text-shadow" style={{ color: currentWallpaper.primaryColor }}>SETOR LIMPO</h2>
@@ -1022,7 +1068,7 @@ export default function App() {
             </div>
       )}
       
-      <div className="absolute bottom-2 right-2 text-[10px] text-slate-700 font-mono z-50">v8.3.2 // LOOT_FIX</div>
+      <div className="absolute bottom-2 right-2 text-[10px] text-slate-700 font-mono z-50">v8.4.0 // RETRO_REWARDS</div>
     </div>
   );
 }

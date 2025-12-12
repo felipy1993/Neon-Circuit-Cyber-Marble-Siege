@@ -246,28 +246,17 @@ export const LEVELS: LevelConfig[] = Array.from({ length: 1000 }, (_, i) => {
 
   const levelColors = COLORS.slice(0, colorCount);
 
-  // Path types rotate (20 VARIATIONS NOW)
+  // Path types rotate - MOBILE OPTIMIZED SET (No sharp corners, no complex shapes)
   const pathTypes: LevelConfig['pathType'][] = [
       'circle', 
-      'star', 
       'infinity', 
-      'diamond', 
       'spiral', 
       'hourglass', 
       'sine', 
-      'gear', 
-      'complex', 
       'super-ellipse',
       'heart',
-      'triangle',
-      'snake',
-      'spiral-square',
       'clover-4',
-      'hexagon',
-      'bow',
-      'cross',
-      'shuriken',
-      'buzzsaw'
+      'bow'
   ];
   
   // Speed curve: Reduced base speed significantly for mobile playability

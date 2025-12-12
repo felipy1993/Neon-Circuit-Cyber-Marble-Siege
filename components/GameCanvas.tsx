@@ -1380,7 +1380,22 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           empNextShotRef.current = false;
       } else {
           currentShooterColorRef.current = nextMarbleColorRef.current;
-          nextMarbleColorRef.current = levelConfig.colors[Math.floor(Math.random() * levelConfig.colors.length)];
+          
+          // SMART AMMO LOGIC: Only generate colors present on board
+          const activeColors = new Set<MarbleColor>();
+          marblesRef.current.forEach(m => {
+              if (m.type !== MarbleType.WILDCARD) {
+                  activeColors.add(m.color);
+              }
+          });
+
+          if (activeColors.size > 0) {
+              const options = Array.from(activeColors);
+              nextMarbleColorRef.current = options[Math.floor(Math.random() * options.length)];
+          } else {
+               // Fallback if empty or only wildcards
+              nextMarbleColorRef.current = levelConfig.colors[Math.floor(Math.random() * levelConfig.colors.length)];
+          }
       }
   };
 

@@ -1,6 +1,3 @@
-
-
-
 import { Point } from '../types';
 
 export const getDistance = (p1: Point, p2: Point) => {
@@ -36,21 +33,26 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
   const cy = genHeight / 2;
   const minDim = Math.min(genWidth, genHeight);
   
-  // Base scale increased to 0.48 to fill even more screen
-  let scale = minDim * 0.48;
+  // Base scale reduced to ensure fit on all screens
+  let scale = minDim * 0.42;
 
-  // Mobile specific boosts - AGGRESSIVE SCALING to prevent short maps
+  // Mobile specific boosts - Adjusted to prevent clipping
   if (isPortrait) {
-      if (type === 'infinity') scale *= 1.9; // Massive boost for infinity
-      if (type === 'bow') scale *= 1.8;
-      if (type === 'sine') scale *= 1.8;
-      if (type === 'snake') scale *= 1.8;
-      if (type === 'complex') scale *= 1.4;
+      scale = minDim * 0.42; 
+      
+      // Multipliers reduced to ensure horizontal fit (which corresponds to generated Y)
+      if (type === 'infinity') scale *= 1.7; 
+      if (type === 'bow') scale *= 1.6;
+      if (type === 'sine') scale *= 1.6;
+      if (type === 'snake') scale *= 1.6;
+      if (type === 'complex') scale *= 1.3;
+      if (type === 'spiral') scale *= 1.15;
       // Hourglass is limited by width, so we can't boost it much without clipping
   }
 
-  // Reduce padding on mobile to use full vertical height
-  const edgePadding = isPortrait ? 20 : 50;
+  // Increased padding to avoid UI overlaps (Notch, Bottom Bar)
+  // This mostly affects linear maps like 'sine' and 'snake'
+  const edgePadding = isPortrait ? 120 : 60;
 
   for (let i = 0; i <= steps; i++) {
     const t = i / steps;
@@ -147,8 +149,6 @@ const getRawPathPoints = (type: string, width: number, height: number, steps: nu
         y = cy + sinT * rSE;
         break;
         
-      // --- NEW MAPS ---
-      
       case 'heart':
         // Parametric Heart
         const tHeart = t * Math.PI * 2;

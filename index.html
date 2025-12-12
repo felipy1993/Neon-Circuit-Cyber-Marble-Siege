@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#050510">
     <title>Neon Circuit: Cyber Marble Siege</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
@@ -12,6 +15,8 @@
         background-color: #050510;
         overflow: hidden;
         touch-action: none;
+        -webkit-tap-highlight-color: transparent; /* Remove highlight on tap */
+        overscroll-behavior: none;
       }
       .font-display {
         font-family: 'Orbitron', sans-serif;

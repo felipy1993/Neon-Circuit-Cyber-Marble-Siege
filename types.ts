@@ -27,7 +27,9 @@ export enum MarbleColor {
 export enum MarbleType {
   NORMAL = 'NORMAL',
   WILDCARD = 'WILDCARD', // Matches any color
-  BOMB = 'BOMB'          // Explodes on impact
+  BOMB = 'BOMB',          // Explodes on impact
+  ICE = 'ICE',           // Slows down the chain
+  COIN = 'COIN'          // Gives bonus credits
 }
 
 export enum PowerupType {

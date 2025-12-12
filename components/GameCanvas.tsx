@@ -1,11 +1,3 @@
-
-
-
-
-
-
-
-
 import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
 import { LevelConfig, Marble, MarbleColor, MarbleType, Particle, Point, Projectile, FloatingText, PowerupType, UpgradeType, WallpaperId, SkinId } from '../types';
 import { MARBLE_RADIUS, PROJECTILE_SPEED, PATH_WIDTH, CREDITS_PER_MARBLE, CREDITS_PER_COMBO, CREDITS_PER_COMBO as CREDITS_PER_COMBO_CONST, WALLPAPERS } from '../constants';
@@ -88,6 +80,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const reverseTimerRef = useRef(0);
   const empNextShotRef = useRef(false);
   const comboStreakRef = useRef(0); 
+  const dangerLevelRef = useRef(0); // 0 to 1 intensity
   
   const marblesRef = useRef<Marble[]>([]);
   const projectilesRef = useRef<Projectile[]>([]);
@@ -209,7 +202,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   }, [musicEnabled, isPaused]);
 
 
-  const playSound = (type: 'shoot' | 'explode' | 'powerup' | 'swap' | 'gameover' | 'win') => {
+  const playSound = (type: 'shoot' | 'explode' | 'powerup' | 'swap' | 'gameover' | 'win' | 'coin' | 'freeze') => {
       if (!sfxEnabled || !audioCtxRef.current) return;
       const ctx = audioCtxRef.current;
       if (ctx.state !== 'running') return;
@@ -269,12 +262,38 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
               osc.start(now);
               osc.stop(now + 0.6);
               break;
+            case 'coin':
+              osc.type = 'sine';
+              osc.frequency.setValueAtTime(1200, now);
+              osc.frequency.exponentialRampToValueAtTime(1800, now + 0.1);
+              gain.gain.setValueAtTime(0.1, now);
+              gain.gain.exponentialRampToValueAtTime(0.01, now + 0.1);
+              osc.start(now);
+              osc.stop(now + 0.1);
+              break;
+            case 'freeze':
+              osc.type = 'square';
+              osc.frequency.setValueAtTime(800, now);
+              osc.frequency.linearRampToValueAtTime(400, now + 0.3);
+              gain.gain.setValueAtTime(0.1, now);
+              gain.gain.linearRampToValueAtTime(0, now + 0.3);
+              osc.start(now);
+              osc.stop(now + 0.3);
+              break;
+      }
+  };
+  
+  // HAPTIC FEEDBACK HELPER
+  const vibrate = (ms: number | number[]) => {
+      if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+          window.navigator.vibrate(ms);
       }
   };
 
   useImperativeHandle(ref, () => ({
     triggerPowerup(type: PowerupType) {
       playSound('powerup');
+      vibrate([50, 50, 50]); // Pulse
       if (type === PowerupType.EMP) {
         empNextShotRef.current = true;
         addFloatingText(canvasRef.current!.width / (window.devicePixelRatio || 1) / 2, canvasRef.current!.height / (window.devicePixelRatio || 1) / 2, "PEM ARMADO", "#00f0ff", 1.5);
@@ -344,6 +363,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     shakeRef.current = 0;
     slowMoTimerRef.current = 0;
     reverseTimerRef.current = 0;
+    dangerLevelRef.current = 0;
     empNextShotRef.current = false;
     comboStreakRef.current = 0;
     frameCountRef.current = 0;
@@ -411,8 +431,12 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                 let type = MarbleType.NORMAL;
                 const rnd = Math.random();
                 const baseChance = 0.02 + luckFactor; 
+                
+                // Spawn Probability
                 if (rnd < baseChance) type = MarbleType.WILDCARD;
                 else if (rnd < baseChance * 2) type = MarbleType.BOMB;
+                else if (rnd < baseChance * 2.5) type = MarbleType.ICE; // Rare ice
+                else if (rnd < baseChance * 3.0) type = MarbleType.COIN; // Rare coin
 
                 marblesRef.current.push({
                     id: Math.random().toString(36).substr(2, 9),
@@ -426,11 +450,26 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             }
         } else if (marblesRef.current.length === 0 && particlesRef.current.length === 0) {
             playSound('win');
+            vibrate([100, 50, 100, 50, 200]);
             onGameOverRef.current(scoreRef.current, true);
         }
 
         // 2. Physics & Chains
         marblesRef.current.sort((a, b) => b.offset - a.offset);
+
+        // Check Danger Level
+        if (marblesRef.current.length > 0 && pathLengthRef.current > 0) {
+            const leadOffset = marblesRef.current[0].offset;
+            const progress = leadOffset / pathLengthRef.current;
+            if (progress > 0.85) {
+                // Ramp up danger from 0.85 to 1.0
+                dangerLevelRef.current = Math.min(1, (progress - 0.85) / 0.15);
+            } else {
+                dangerLevelRef.current = Math.max(0, dangerLevelRef.current - 0.05);
+            }
+        } else {
+            dangerLevelRef.current = 0;
+        }
 
         const chains: Marble[][] = [];
         if (marblesRef.current.length > 0) {
@@ -536,6 +575,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
             const head = marblesRef.current[0];
             if (head.offset >= pathLengthRef.current) {
                 playSound('gameover');
+                vibrate(500);
                 onGameOverRef.current(scoreRef.current, false);
             }
         }
@@ -579,6 +619,18 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                             break;
                         }
 
+                        if (m.type === MarbleType.COIN) {
+                            collectCoin(m, mIdx);
+                            projectilesRef.current.splice(i, 1);
+                            break;
+                        }
+
+                        if (m.type === MarbleType.ICE) {
+                            activateIce(m, mIdx);
+                            projectilesRef.current.splice(i, 1);
+                            break;
+                        }
+
                         if (p.isEmp) {
                             explodeArea(p.x, p.y, 150 * blastRadiusMultiplier);
                             addFloatingText(p.x, p.y, "EXPLOSÃO PEM", "#00f0ff", 1.2);
@@ -609,6 +661,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
                         triggerShake(3);
                         playSound('shoot'); 
+                        // Small haptic for hit
+                        vibrate(10);
                         const matched = handleMatches(mIdx + 1, false);
                         
                         if (matched) {
@@ -696,6 +750,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
     drawShooter(ctx, logicalWidth, logicalHeight);
     drawEffects(ctx);
+    drawDangerOverlay(ctx, logicalWidth, logicalHeight);
     
     ctx.restore();
 
@@ -722,6 +777,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
   const swapColors = () => {
       playSound('swap');
+      vibrate(25); // Subtle tick
       const temp = currentShooterColorRef.current;
       currentShooterColorRef.current = nextMarbleColorRef.current;
       nextMarbleColorRef.current = temp;
@@ -731,6 +787,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       triggerShake(10);
       spawnParticles(x, y, '#ff003c');
       playSound('explode');
+      vibrate(200); // Strong vibrate
       
       const toDestroy: number[] = [];
       marblesRef.current.forEach((target, tIdx) => {
@@ -756,6 +813,37 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       }
   };
 
+  const collectCoin = (marble: Marble, index: number) => {
+      const p = getPointAtDistance(marble.offset, pathPointsRef.current, pathLengthRef.current);
+      const coinAmount = 50 * scoreMultiplier;
+      
+      playSound('coin');
+      addFloatingText(p.x, p.y, `+${Math.floor(coinAmount)} CR`, "#ffd700", 1.8);
+      creditsRef.current += Math.floor(coinAmount);
+      onCreditsUpdateRef.current(Math.floor(coinAmount));
+      
+      const currentIdx = marblesRef.current.indexOf(marble);
+      if (currentIdx !== -1) {
+          marblesRef.current.splice(currentIdx, 1);
+          spawnParticles(p.x, p.y, '#ffd700');
+      }
+  };
+
+  const activateIce = (marble: Marble, index: number) => {
+      const p = getPointAtDistance(marble.offset, pathPointsRef.current, pathLengthRef.current);
+      
+      playSound('freeze');
+      addFloatingText(p.x, p.y, "CONGELADO", "#00ffff", 1.5);
+      
+      slowMoTimerRef.current = 180; // 3 seconds of slow motion/freeze
+      
+      const currentIdx = marblesRef.current.indexOf(marble);
+      if (currentIdx !== -1) {
+          marblesRef.current.splice(currentIdx, 1);
+          spawnParticles(p.x, p.y, '#00ffff');
+      }
+  };
+
   const handleMatches = (idx: number, isCombo: boolean): boolean => {
       const marbles = marblesRef.current;
       if (idx < 0 || idx >= marbles.length) return false;
@@ -763,8 +851,17 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       const pivotMarble = marbles[idx];
       const pivotColor = pivotMarble.color;
       
+      // Handle Special Marbles triggering
       if (pivotMarble.type === MarbleType.BOMB) {
           explodeBomb(pivotMarble, idx);
+          return true;
+      }
+      if (pivotMarble.type === MarbleType.COIN) {
+          collectCoin(pivotMarble, idx);
+          return true;
+      }
+      if (pivotMarble.type === MarbleType.ICE) {
+          activateIce(pivotMarble, idx);
           return true;
       }
 
@@ -787,9 +884,18 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       
       if (count >= 3) {
           playSound('explode');
+          vibrate(50 + (count * 10)); // Heavier vibrate for bigger match
           for(let k=start; k<=end; k++) {
               if (marblesRef.current[k].type === MarbleType.BOMB) {
                   explodeBomb(marblesRef.current[k], k);
+                  return true;
+              }
+              if (marblesRef.current[k].type === MarbleType.COIN) {
+                  collectCoin(marblesRef.current[k], k);
+                  return true;
+              }
+              if (marblesRef.current[k].type === MarbleType.ICE) {
+                  activateIce(marblesRef.current[k], k);
                   return true;
               }
           }
@@ -850,6 +956,34 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
   const triggerShake = (amount: number) => {
       shakeRef.current = amount;
+  };
+
+  const drawDangerOverlay = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+      if (dangerLevelRef.current <= 0.01) return;
+
+      const intensity = dangerLevelRef.current * (0.5 + 0.2 * Math.sin(Date.now() / 150)); // Pulse
+      
+      // Radial gradient vignette
+      const gradient = ctx.createRadialGradient(width/2, height/2, height/3, width/2, height/2, Math.max(width, height));
+      gradient.addColorStop(0, 'transparent');
+      gradient.addColorStop(0.7, `rgba(255, 0, 60, ${intensity * 0.3})`);
+      gradient.addColorStop(1, `rgba(255, 0, 0, ${intensity * 0.6})`);
+      
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, width, height);
+
+      // Warning text
+      if (intensity > 0.4) {
+          ctx.save();
+          ctx.font = 'bold 40px Orbitron';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = `rgba(255, 0, 0, ${intensity})`;
+          ctx.shadowColor = 'red';
+          ctx.shadowBlur = 10;
+          // ctx.fillText("PERIGO", width/2, height/5);
+          ctx.restore();
+      }
   };
 
   const drawCyberpunkBackground = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
@@ -953,9 +1087,11 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     if (!endPoint) return;
     
     const time = Date.now();
-    const pulse = 40 + Math.sin(time / 200) * 5;
+    // Pulse faster if in danger
+    const pulseSpeed = dangerLevelRef.current > 0.5 ? 20 : 5;
+    const pulse = 40 + Math.sin(time / (200 - dangerLevelRef.current * 100)) * pulseSpeed;
     
-    ctx.fillStyle = 'rgba(255, 0, 60, 0.3)';
+    ctx.fillStyle = `rgba(255, 0, 60, ${0.3 + dangerLevelRef.current * 0.4})`;
     ctx.beginPath();
     ctx.arc(endPoint.x, endPoint.y, pulse + 10, 0, Math.PI*2);
     ctx.fill();
@@ -982,11 +1118,17 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
   const drawMarble = (ctx: CanvasRenderingContext2D, x: number, y: number, marble: Marble, radius: number, rotation: number) => {
       let glowColor: string = marble.color;
+      
+      // Determine glow color for special types
       if (marble.type === MarbleType.WILDCARD) {
            const hue = (Date.now() / 5) % 360;
            glowColor = `hsl(${hue}, 100%, 50%)`;
       } else if (marble.type === MarbleType.BOMB) {
            glowColor = '#ff0000';
+      } else if (marble.type === MarbleType.ICE) {
+           glowColor = '#a5f3fc'; // Light Cyan
+      } else if (marble.type === MarbleType.COIN) {
+           glowColor = '#ffd700'; // Gold
       }
 
       ctx.fillStyle = glowColor;
@@ -996,37 +1138,46 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       ctx.fill();
       ctx.globalAlpha = 1.0;
 
+      // Draw Main Marble Body
       ctx.fillStyle = marble.color;
       if (marble.type === MarbleType.WILDCARD) ctx.fillStyle = glowColor;
       if (marble.type === MarbleType.BOMB) ctx.fillStyle = `rgb(${150 + Math.sin(Date.now()/100)*100}, 0, 0)`;
+      if (marble.type === MarbleType.ICE) ctx.fillStyle = '#06b6d4';
+      if (marble.type === MarbleType.COIN) ctx.fillStyle = '#eab308';
 
       ctx.beginPath();
       ctx.arc(x, y, radius - 1, 0, Math.PI * 2);
       ctx.fill();
 
+      // Shine effect
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.beginPath();
       ctx.arc(x - 4, y - 4, radius * 0.3, 0, Math.PI * 2);
       ctx.fill();
       
+      // Draw Symbols for Special Types
       if (marble.type !== MarbleType.NORMAL || marble.backwards) {
           ctx.save();
           ctx.translate(x, y);
           ctx.rotate(rotation);
           
+          ctx.font = 'bold 14px Orbitron';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+
           if (marble.type === MarbleType.WILDCARD) {
               ctx.fillStyle = '#fff';
-              ctx.font = '12px Orbitron';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
               ctx.fillText('★', 0, 0);
           } else if (marble.type === MarbleType.BOMB) {
               ctx.fillStyle = '#000';
-              ctx.font = 'bold 12px Orbitron';
-              ctx.textAlign = 'center';
-              ctx.textBaseline = 'middle';
               ctx.fillText('!', 0, 0);
-          } 
+          } else if (marble.type === MarbleType.ICE) {
+              ctx.fillStyle = '#fff';
+              ctx.fillText('❄', 0, 1);
+          } else if (marble.type === MarbleType.COIN) {
+              ctx.fillStyle = '#000';
+              ctx.fillText('$', 0, 1);
+          }
 
           if (marble.backwards) {
               ctx.fillStyle = '#fff';
@@ -1063,18 +1214,32 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         }
     }
 
+    // --- ENHANCED LASER SIGHT ---
+    // Instead of a dashed line, a gradient fade laser
+    const aimLength = 800;
+    const laserGradient = ctx.createLinearGradient(35, 0, aimLength, 0);
+    const laserColor = empNextShotRef.current ? '#ffffff' : currentShooterColorRef.current;
+    
+    laserGradient.addColorStop(0, laserColor);
+    laserGradient.addColorStop(0.4, laserColor); // Strong start
+    laserGradient.addColorStop(1, 'rgba(0,0,0,0)'); // Fade out
+
     ctx.beginPath();
     ctx.moveTo(35, 0);
-    ctx.lineTo(800, 0); 
-    ctx.strokeStyle = empNextShotRef.current ? '#ffffff' : currentShooterColorRef.current;
+    ctx.lineTo(aimLength, 0); 
+    ctx.strokeStyle = laserGradient;
     ctx.lineWidth = empNextShotRef.current ? 4 : 2;
-    ctx.setLineDash(empNextShotRef.current ? [] : [2, 10]); 
-    ctx.globalAlpha = 0.5;
+    
+    // Add a pulsing glow to the laser
+    const laserAlpha = 0.4 + 0.2 * Math.sin(Date.now() / 100);
+    ctx.globalAlpha = laserAlpha;
+    
     ctx.stroke();
     ctx.globalAlpha = 1.0;
-    ctx.setLineDash([]);
+    
     ctx.restore();
     
+    // Draw Ship
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
@@ -1188,6 +1353,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       const dy = e.clientY - cy;
       const dist = Math.sqrt(dx*dx + dy*dy);
       
+      // Better touch detection area for "Swap" vs "Shoot"
+      // 60px is approx a generous thumb size
       if (dist < 60) {
           swapColors();
           return;
@@ -1206,6 +1373,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       });
       
       playSound('shoot');
+      vibrate(15); // Light tap on shoot
       triggerShake(empNextShotRef.current ? 5 : 2);
       
       if (empNextShotRef.current) {
@@ -1226,7 +1394,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   
   const handleTouchMove = (e: TouchEvent) => {
      if (isPaused) return;
-     if (e.cancelable) e.preventDefault();
+     if (e.cancelable) e.preventDefault(); // Prevents scrolling on mobile
      const touch = e.touches[0];
      mousePosRef.current = { x: touch.clientX, y: touch.clientY };
   };
@@ -1254,6 +1422,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     window.addEventListener('contextmenu', handleContextMenu);
     window.addEventListener('keydown', handleKeyDown);
     
+    // Using passive: false to allow preventing default behavior (scrolling)
     window.addEventListener('touchstart', handleTouchStart, { passive: false });
     window.addEventListener('touchmove', handleTouchMove, { passive: false });
     
@@ -1274,7 +1443,7 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
     };
   }, [animate]);
 
-  return <canvas ref={canvasRef} className="absolute inset-0 z-0 cursor-crosshair" style={{ touchAction: 'none' }} />;
+  return <canvas ref={canvasRef} className="absolute inset-0 z-0 cursor-crosshair touch-none" style={{ touchAction: 'none' }} />;
 });
 
 export default GameCanvas;

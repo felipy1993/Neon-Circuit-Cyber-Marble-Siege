@@ -47,7 +47,7 @@ const TUTORIAL_STEPS = [
     },
     {
         title: "CONTROLES DO DRONE",
-        description: "Clique para atirar. Clique com o BOTÃO DIREITO ou TOQUE NO DRONE para trocar a cor da munição.",
+        description: "Toque na tela para atirar. TOQUE NO DRONE (centro) para trocar a cor da munição.",
         icon: <Mouse size={64} className="text-cyan-400 mb-4" />
     },
     {
@@ -1249,12 +1249,13 @@ export default function App() {
                  background: 'radial-gradient(circle, rgba(0,0,0,0) 50%, rgba(0,0,0,0.8) 100%)'
             }}></div>
 
-            <div className="absolute top-4 left-4 z-50 pointer-events-auto">
+            {/* PAUSE BUTTON - Adjusted for mobile touch target and position */}
+            <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50 pointer-events-auto">
                 <button 
                     onClick={togglePause}
-                    className="bg-black/80 border border-slate-600 hover:border-white p-3 rounded clip-path-slant text-white shadow-lg transition-all hover:scale-105 active:scale-95"
+                    className="bg-black/80 border border-slate-600 hover:border-white p-3 md:p-4 rounded clip-path-slant text-white shadow-lg transition-all hover:scale-105 active:scale-95"
                 >
-                    <Pause size={24} />
+                    <Pause size={24} className="md:w-8 md:h-8" />
                 </button>
             </div>
 
@@ -1325,26 +1326,28 @@ export default function App() {
                 </div>
             )}
 
-            <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start pointer-events-none z-40 pl-20"> 
-              <div className="bg-black/60 backdrop-blur-md p-3 px-6 border-l-4 clip-path-slant shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+            {/* HUD - TOP BAR */}
+            <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-start pointer-events-none z-40 pl-20 md:pl-28 pt-6 md:pt-4"> 
+              <div className="bg-black/60 backdrop-blur-md p-2 md:p-3 px-4 md:px-6 border-l-4 clip-path-slant shadow-[0_0_20px_rgba(0,0,0,0.5)]"
                    style={{ borderColor: currentWallpaper.primaryColor }}>
-                <div className="text-[10px] font-bold tracking-widest uppercase" style={{ color: currentWallpaper.primaryColor }}>Pontos</div>
-                <div className="text-2xl font-display text-white">{score.toLocaleString()}</div>
+                <div className="text-[9px] md:text-[10px] font-bold tracking-widest uppercase" style={{ color: currentWallpaper.primaryColor }}>Pontos</div>
+                <div className="text-xl md:text-2xl font-display text-white">{score.toLocaleString()}</div>
               </div>
 
-              <div className="bg-black/60 backdrop-blur-md p-3 px-6 border border-yellow-400/30 rounded flex items-center gap-2 hidden md:flex">
+              <div className="bg-black/60 backdrop-blur-md p-3 px-6 border border-yellow-400/30 rounded flex items-center gap-2 hidden lg:flex">
                   <Coins className="text-yellow-400" size={18} />
                   <span className="text-xl font-mono text-yellow-400">{playerState.credits}</span>
               </div>
               
-              <div className="bg-black/60 backdrop-blur-md p-3 px-6 border-r-4 clip-path-slant text-right shadow-[0_0_20px_rgba(0,0,0,0.5)]"
+              <div className="bg-black/60 backdrop-blur-md p-2 md:p-3 px-4 md:px-6 border-r-4 clip-path-slant text-right shadow-[0_0_20px_rgba(0,0,0,0.5)]"
                    style={{ borderColor: currentWallpaper.secondaryColor }}>
-                <div className="text-[10px] font-bold tracking-widest uppercase" style={{ color: currentWallpaper.secondaryColor }}>Setor</div>
-                <div className="text-2xl font-display text-white">{currentLevelId} <span className="text-sm text-gray-400">/ 1000</span></div>
+                <div className="text-[9px] md:text-[10px] font-bold tracking-widest uppercase" style={{ color: currentWallpaper.secondaryColor }}>Setor</div>
+                <div className="text-xl md:text-2xl font-display text-white">{currentLevelId} <span className="text-xs md:text-sm text-gray-400">/ 1000</span></div>
               </div>
             </div>
 
-            <div className={`absolute right-0 top-1/2 -translate-y-1/2 z-40 p-2 flex flex-col gap-3 pointer-events-auto transition-opacity duration-300 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
+            {/* POWERUP BAR - Positioned for thumb access on mobile */}
+            <div className={`absolute right-0 top-1/2 -translate-y-1/2 z-40 p-2 flex flex-col gap-4 pointer-events-auto transition-opacity duration-300 ${isPaused ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
                  {SHOP_ITEMS.map(item => {
                      const owned = playerState.inventory[item.id] || 0;
                      const canAfford = playerState.credits >= item.price;
@@ -1352,7 +1355,7 @@ export default function App() {
                      
                      return (
                         <div key={item.id} className="group relative flex items-center justify-end">
-                            <div className="absolute right-full mr-2 bg-black/90 border border-slate-600 p-2 w-40 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            <div className="absolute right-full mr-2 bg-black/90 border border-slate-600 p-2 w-40 rounded opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none hidden md:block">
                                 <div className="font-bold text-white text-sm">{item.name}</div>
                                 <div className="text-[10px] text-slate-400 leading-tight">{item.description}</div>
                             </div>
@@ -1361,9 +1364,9 @@ export default function App() {
                                 onClick={() => handleSmartAction(item.id, item.price)}
                                 disabled={!isActionable}
                                 className={`
-                                    relative flex flex-col items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-l-xl border-y border-l transition-all
+                                    relative flex flex-col items-center justify-center w-14 h-14 md:w-16 md:h-16 rounded-l-xl border-y border-l transition-all active:scale-95
                                     ${owned > 0 
-                                        ? 'bg-blue-900/80 border-white hover:bg-cyan-900' 
+                                        ? 'bg-blue-900/80 border-white hover:bg-cyan-900 shadow-[0_0_15px_rgba(0,240,255,0.3)]' 
                                         : canAfford 
                                             ? 'bg-slate-900/80 border-yellow-600 hover:bg-slate-800' 
                                             : 'bg-black/60 border-slate-800 opacity-50 grayscale'}
@@ -1391,7 +1394,7 @@ export default function App() {
                  })}
             </div>
 
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xs md:max-w-md px-4 pointer-events-none z-40">
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-full max-w-xs md:max-w-md px-4 pointer-events-none z-40 mb-safe">
                 <div className="h-3 bg-slate-900/80 rounded-full overflow-hidden border border-slate-600 shadow-lg relative">
                     <div 
                         className="h-full transition-all duration-300"
@@ -1442,7 +1445,7 @@ export default function App() {
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-red-950/80 z-50 backdrop-blur-sm">
                <ShieldAlert size={64} className="text-red-500 mb-4 animate-pulse drop-shadow-[0_0_20px_rgba(239,68,68,0.8)]" />
                <h2 className="text-5xl font-display text-red-500 mb-2 neon-text-shadow">GAME OVER</h2>
-               <p className="text-xl text-white mb-8 tracking-widest">NÚCLEO DE DADOS DESTRUÍDO</p>
+               <p className="text-xl text-white mb-8 tracking-widest text-center px-4">NÚCLEO DE DADOS DESTRUÍDO</p>
                <div className="flex gap-4">
                    <Button variant="secondary" onClick={() => setScreen(GameScreen.MENU)}>MENU</Button>
                    <Button onClick={() => startGame(currentLevelId)}>TENTAR NOVAMENTE</Button>
@@ -1461,7 +1464,7 @@ export default function App() {
       {renderScreen()}
       
       <div className="absolute bottom-2 right-2 text-[10px] text-slate-700 font-mono z-50">
-        v8.2.0 // RANK_UPDATE
+        v8.3.0 // MOBILE_OPTIMIZED
       </div>
     </div>
   );

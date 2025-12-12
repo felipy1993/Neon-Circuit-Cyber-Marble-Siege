@@ -718,23 +718,30 @@ export default function App() {
       
       {/* GLOBAL CHEST OVERLAY */}
       {pendingChestReward && (
-          <div className="absolute inset-0 z-[100] bg-black/95 backdrop-blur-lg flex flex-col items-center justify-center p-4 animate-in fade-in duration-300">
-              <div className="w-full max-w-4xl text-center">
-                  <h2 className="text-3xl md:text-5xl font-display text-yellow-400 mb-2 neon-text-shadow animate-pulse">RECOMPENSA DE MARCO</h2>
-                  <p className="text-slate-400 mb-12 text-lg">NÍVEL {chestSourceLevel} CONQUISTADO. ESCOLHA UM SUPRIMENTO.</p>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-                      {[0, 1, 2].map((idx) => {
-                          const isSelected = selectedChestIndex === idx;
-                          const isRevealed = chestReward !== null;
-                          if (isRevealed && !isSelected) { return (<div key={idx} className="opacity-30 scale-90 grayscale flex flex-col items-center justify-center border border-slate-700 rounded-xl p-8 bg-slate-900"><Box size={64} className="text-slate-500 mb-4" /></div>); }
-                          if (isRevealed && isSelected) {
-                              const rarityColor = chestReward.rarity === 'LEGENDARY' ? '#ff003c' : chestReward.rarity === 'EPIC' ? '#a855f7' : chestReward.rarity === 'RARE' ? '#00f0ff' : '#fbbf24';
-                              return (<div key={idx} className="animate-in zoom-in duration-500 border-2 rounded-xl p-8 bg-slate-800 flex flex-col items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.2)]" style={{ borderColor: rarityColor }}><div className="mb-4 relative"><Sparkles size={80} className="text-white animate-spin-slow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-50" /><Gift size={64} style={{ color: rarityColor }} /></div><div className="text-xl font-bold mb-2 text-white">{chestReward.rarity}</div><div className="text-3xl font-mono text-yellow-400 mb-2 flex items-center gap-2"><Coins size={24} /> {chestReward.credits}</div>{chestReward.powerup && (<div className="text-cyan-400 font-bold border-t border-slate-600 pt-2 mt-2 w-full text-center">+1 {chestReward.powerup}</div>)}</div>);
-                          }
-                          return (<button key={idx} onClick={() => handleOpenChest(idx)} className="group relative border-2 border-yellow-600/50 bg-slate-900/80 rounded-xl p-12 flex flex-col items-center justify-center hover:border-yellow-400 hover:bg-slate-800 hover:scale-105 transition-all cursor-pointer"><div className="absolute inset-0 bg-yellow-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div><Box size={80} className="text-yellow-600 group-hover:text-yellow-400 transition-colors mb-4" /><div className="font-display text-slate-500 group-hover:text-white">ABRIR</div></button>);
-                      })}
+          <div className="absolute inset-0 z-[100] bg-black/95 backdrop-blur-lg overflow-y-auto animate-in fade-in duration-300">
+              <div className="min-h-full flex flex-col items-center justify-center p-4">
+                  <div className="w-full max-w-4xl text-center">
+                      <h2 className="text-3xl md:text-5xl font-display text-yellow-400 mb-2 neon-text-shadow animate-pulse">RECOMPENSA DE MARCO</h2>
+                      <p className="text-slate-400 mb-8 md:mb-12 text-lg">NÍVEL {chestSourceLevel} CONQUISTADO. ESCOLHA UM SUPRIMENTO.</p>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8 mb-8">
+                          {[0, 1, 2].map((idx) => {
+                              const isSelected = selectedChestIndex === idx;
+                              const isRevealed = chestReward !== null;
+                              // UNSELECTED REVEALED
+                              if (isRevealed && !isSelected) { 
+                                  return (<div key={idx} className="opacity-30 scale-90 grayscale flex flex-col items-center justify-center border border-slate-700 rounded-xl p-4 md:p-8 bg-slate-900"><Box size={40} className="md:w-16 md:h-16 text-slate-500 mb-4" /></div>); 
+                              }
+                              // SELECTED REVEALED
+                              if (isRevealed && isSelected) {
+                                  const rarityColor = chestReward.rarity === 'LEGENDARY' ? '#ff003c' : chestReward.rarity === 'EPIC' ? '#a855f7' : chestReward.rarity === 'RARE' ? '#00f0ff' : '#fbbf24';
+                                  return (<div key={idx} className="animate-in zoom-in duration-500 border-2 rounded-xl p-6 md:p-8 bg-slate-800 flex flex-col items-center justify-center shadow-[0_0_50px_rgba(255,255,255,0.2)]" style={{ borderColor: rarityColor }}><div className="mb-4 relative"><Sparkles size={60} className="text-white animate-spin-slow absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-50 md:w-20 md:h-20" /><Gift size={48} className="md:w-16 md:h-16" style={{ color: rarityColor }} /></div><div className="text-xl font-bold mb-2 text-white">{chestReward.rarity}</div><div className="text-2xl md:text-3xl font-mono text-yellow-400 mb-2 flex items-center gap-2"><Coins size={24} /> {chestReward.credits}</div>{chestReward.powerup && (<div className="text-cyan-400 font-bold border-t border-slate-600 pt-2 mt-2 w-full text-center">+1 {chestReward.powerup}</div>)}</div>);
+                              }
+                              // DEFAULT BUTTON
+                              return (<button key={idx} onClick={() => handleOpenChest(idx)} className="group relative border-2 border-yellow-600/50 bg-slate-900/80 rounded-xl p-8 md:p-12 flex flex-col items-center justify-center hover:border-yellow-400 hover:bg-slate-800 hover:scale-105 transition-all cursor-pointer"><div className="absolute inset-0 bg-yellow-400/5 opacity-0 group-hover:opacity-100 transition-opacity"></div><Box size={60} className="md:w-20 md:h-20 text-yellow-600 group-hover:text-yellow-400 transition-colors mb-4" /><div className="font-display text-slate-500 group-hover:text-white">ABRIR</div></button>);
+                          })}
+                      </div>
+                      {chestReward && (<div className="flex justify-center pb-8"><Button onClick={closeChestModal} className="animate-in fade-in slide-in-from-bottom-8"><div className="flex items-center gap-2">COLETAR <Check size={20} /></div></Button></div>)}
                   </div>
-                  {chestReward && (<Button onClick={closeChestModal} className="animate-in fade-in slide-in-from-bottom-8"><div className="flex items-center gap-2">COLETAR <Check size={20} /></div></Button>)}
               </div>
           </div>
       )}
@@ -1068,7 +1075,7 @@ export default function App() {
             </div>
       )}
       
-      <div className="absolute bottom-2 right-2 text-[10px] text-slate-700 font-mono z-50">v8.4.0 // RETRO_REWARDS</div>
+      <div className="absolute bottom-2 right-2 text-[10px] text-slate-700 font-mono z-50">v8.4.1 // MOBILE_FIX</div>
     </div>
   );
 }

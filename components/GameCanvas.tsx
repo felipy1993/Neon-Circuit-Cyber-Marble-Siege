@@ -973,7 +973,9 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           
           if (isCombo) {
               points *= 1.5; 
-              earnedCredits += CREDITS_PER_COMBO_CONST;
+              // Credits multiply by streak count to reward good gameplay
+              const streakBonus = comboStreakRef.current > 1 ? comboStreakRef.current : 1;
+              earnedCredits += (CREDITS_PER_COMBO_CONST * streakBonus);
           }
 
           if (comboStreakRef.current > 1) {

@@ -19,8 +19,8 @@ export const COLORS = [
 ];
 
 // Economy
-export const CREDITS_PER_MARBLE = 10;
-export const CREDITS_PER_COMBO = 50;
+export const CREDITS_PER_MARBLE = 15; // Aumentado de 10 para 15
+export const CREDITS_PER_COMBO = 100; // Dobrado de 50 para 100
 export const CREDITS_LEVEL_CLEAR = 500;
 
 export const RANKS: RankConfig[] = [

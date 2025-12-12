@@ -1,5 +1,3 @@
-
-
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { GameScreen, LevelConfig, PlayerState, PowerupType, UpgradeType, WallpaperId, RankConfig, SkinId } from './types';
 import { LEVELS, SHOP_ITEMS, CREDITS_LEVEL_CLEAR, UPGRADES, WALLPAPERS, RANKS, SKINS } from './constants';
@@ -513,10 +511,18 @@ export default function App() {
     
     let earnedCredits = 0;
     if (win) {
-        // Dynamic Bonus: 5% of Score
+        // Dynamic Bonus: 5% of Score added to Base
         const performanceBonus = Math.floor(finalScore * 0.05); 
         earnedCredits = CREDITS_LEVEL_CLEAR + performanceBonus;
         setGameResultBonus(earnedCredits);
+
+        // CHEST CHECK - Logic moved outside of state updater to ensure reliability
+        // Trigger if:
+        // 1. It is the player's current progression frontier (unlockedLevels)
+        // 2. It is a multiple of 5
+        if (currentLevelId === playerState.unlockedLevels && currentLevelId % 5 === 0) {
+            setPendingChestReward(true);
+        }
     } else {
         setGameResultBonus(0);
     }
@@ -530,13 +536,6 @@ export default function App() {
         
         if (win) {
             const nextLevel = currentLevelId + 1;
-            const isNewUnlock = nextLevel > newState.unlockedLevels;
-            
-            // If we just cleared level 5, 10, 15 etc AND it's the first time
-            if (isNewUnlock && (currentLevelId % 5 === 0)) {
-                setPendingChestReward(true);
-            }
-
             newState.unlockedLevels = Math.max(newState.unlockedLevels, nextLevel);
             newState.credits += earnedCredits;
         }
@@ -554,7 +553,7 @@ export default function App() {
     } else {
       setScreen(GameScreen.GAME_OVER);
     }
-  }, [currentLevelId, saveToFirebase]); 
+  }, [currentLevelId, playerState, saveToFirebase]); 
   
   const handleCreditsEarned = useCallback((amount: number) => {
       setPlayerState(prev => ({
@@ -1023,7 +1022,7 @@ export default function App() {
             </div>
       )}
       
-      <div className="absolute bottom-2 right-2 text-[10px] text-slate-700 font-mono z-50">v8.3.1 // LOOT_SYSTEM</div>
+      <div className="absolute bottom-2 right-2 text-[10px] text-slate-700 font-mono z-50">v8.3.2 // LOOT_FIX</div>
     </div>
   );
 }

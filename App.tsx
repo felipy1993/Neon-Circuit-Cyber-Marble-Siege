@@ -84,6 +84,7 @@ export default function App() {
   const [currentLevelId, setCurrentLevelId] = useState(1);
   const [score, setScore] = useState(0);
   const [gameResultScore, setGameResultScore] = useState(0);
+  const [gameResultBonus, setGameResultBonus] = useState(0);
   const [progress, setProgress] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   
@@ -510,6 +511,16 @@ export default function App() {
     setGameResultScore(finalScore);
     setIsPaused(false);
     
+    let earnedCredits = 0;
+    if (win) {
+        // Dynamic Bonus: 5% of Score
+        const performanceBonus = Math.floor(finalScore * 0.05); 
+        earnedCredits = CREDITS_LEVEL_CLEAR + performanceBonus;
+        setGameResultBonus(earnedCredits);
+    } else {
+        setGameResultBonus(0);
+    }
+    
     setPlayerState(prev => {
         const newState = { ...prev };
         // Check High Score
@@ -518,14 +529,6 @@ export default function App() {
         }
         
         if (win) {
-            // CHEST LOGIC CHECK: 
-            // If we are unlocking a new level AND it is a multiple of 5 (e.g., cleared 4, now 5 is unlocked? No, clear 5 to unlock 6)
-            // The prompt says "a cada 5 nivel desbloqueado".
-            // If I just cleared level 5, level 6 unlocks. 
-            // If I just cleared level 4, level 5 unlocks.
-            // Let's interpret: When you beat level 5, 10, 15... you get a chest.
-            
-            // Check if this was a NEW clear of a milestone level
             const nextLevel = currentLevelId + 1;
             const isNewUnlock = nextLevel > newState.unlockedLevels;
             
@@ -535,7 +538,7 @@ export default function App() {
             }
 
             newState.unlockedLevels = Math.max(newState.unlockedLevels, nextLevel);
-            newState.credits += CREDITS_LEVEL_CLEAR;
+            newState.credits += earnedCredits;
         }
         
         // Update total score locally as well
@@ -987,7 +990,25 @@ export default function App() {
              <Trophy size={64} className="text-yellow-400 mb-4 animate-bounce drop-shadow-[0_0_15px_rgba(250,204,21,0.5)]" />
              <h2 className="text-5xl font-display mb-2 neon-text-shadow" style={{ color: currentWallpaper.primaryColor }}>SETOR LIMPO</h2>
              <p className="text-xl text-white mb-2 font-mono">PONTOS: <span style={{ color: currentWallpaper.secondaryColor }}>{gameResultScore}</span></p>
-             <p className="text-lg text-yellow-400 mb-8 font-mono flex items-center gap-2"><Coins size={20} /> BÔNUS: {CREDITS_LEVEL_CLEAR} CR</p>
+             
+             <div className="bg-black/40 p-4 rounded-xl border border-yellow-400/30 mb-8 backdrop-blur-md w-72">
+                <div className="flex justify-between items-center gap-4 mb-2">
+                    <span className="text-slate-400 text-xs uppercase tracking-widest">Base</span>
+                    <span className="font-mono text-yellow-400 text-sm">{CREDITS_LEVEL_CLEAR} CR</span>
+                </div>
+                <div className="flex justify-between items-center gap-4 mb-2">
+                    <span className="text-slate-400 text-xs uppercase tracking-widest">Performance</span>
+                    <span className="font-mono text-cyan-400 text-sm">+{gameResultBonus - CREDITS_LEVEL_CLEAR} CR</span>
+                </div>
+                <div className="w-full h-px bg-slate-700 my-2"></div>
+                <div className="flex justify-between items-center gap-4">
+                    <span className="text-white font-bold text-sm">TOTAL</span>
+                    <span className="font-mono text-xl text-yellow-400 font-bold flex items-center gap-2">
+                        <Coins size={18} /> {gameResultBonus}
+                    </span>
+                </div>
+             </div>
+
              <div className="flex gap-4"><Button variant="secondary" onClick={() => setScreen(GameScreen.MENU)}>MENU</Button><Button onClick={nextLevel}>PRÓXIMO SETOR</Button></div>
           </div>
           </>

@@ -246,10 +246,12 @@ export const LEVELS: LevelConfig[] = Array.from({ length: 1000 }, (_, i) => {
 
   const levelColors = COLORS.slice(0, colorCount);
 
-  // Path types rotate - MOBILE OPTIMIZED SET (No sharp corners, no complex shapes)
+  // Path types rotate - MOBILE OPTIMIZED SET with new Complex Maps
   const pathTypes: LevelConfig['pathType'][] = [
       'circle', 
+      'teleport-vertical', // NEW: 2 Loops + Portal
       'infinity', 
+      'bunker-zigzag',     // NEW: Zigzag + Obstacles
       'spiral', 
       'hourglass', 
       'sine', 

@@ -150,6 +150,27 @@ export interface Point {
   y: number;
 }
 
+export interface Obstacle {
+  id: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+}
+
+export interface Tunnel {
+  startIdx: number; // Index in pathPoints array
+  endIdx: number;   // Index in pathPoints array
+  color: string;
+}
+
+export interface GeneratedLevelData {
+  path: Point[];
+  obstacles: Obstacle[];
+  tunnels: Tunnel[];
+}
+
 export interface Marble {
   id: string;
   color: MarbleColor;
@@ -194,6 +215,6 @@ export interface LevelConfig {
   speedMultiplier: number;
   colors: MarbleColor[];
   spawnCount: number;
-  pathType: 'spiral' | 'sine' | 'infinity' | 'circle' | 'hourglass' | 'super-ellipse' | 'heart' | 'clover-4' | 'bow';
+  pathType: 'spiral' | 'sine' | 'infinity' | 'circle' | 'hourglass' | 'super-ellipse' | 'heart' | 'clover-4' | 'bow' | 'teleport-vertical' | 'bunker-zigzag';
   mapScale: number;
 }

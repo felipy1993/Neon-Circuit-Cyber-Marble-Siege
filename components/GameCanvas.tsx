@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useImperativeHandle, forwardRef } from 'react';
-import { LevelConfig, Marble, MarbleColor, MarbleType, Particle, Point, Projectile, FloatingText, PowerupType, UpgradeType, WallpaperId, SkinId } from '../types';
+import { LevelConfig, Marble, MarbleColor, MarbleType, Particle, Point, Projectile, FloatingText, PowerupType, UpgradeType, WallpaperId, SkinId, Obstacle, Tunnel } from '../types';
 import { MARBLE_RADIUS, PROJECTILE_SPEED, PATH_WIDTH, CREDITS_PER_MARBLE, CREDITS_PER_COMBO, CREDITS_PER_COMBO as CREDITS_PER_COMBO_CONST, WALLPAPERS } from '../constants';
 import { generatePathPoints, getPathLength, getPointAtDistance, getDistance } from '../utils/math';
 
@@ -93,6 +93,8 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   const mousePosRef = useRef<Point>({ x: 0, y: 0 });
   
   const pathPointsRef = useRef<Point[]>([]);
+  const obstaclesRef = useRef<Obstacle[]>([]);
+  const tunnelsRef = useRef<Tunnel[]>([]);
   const pathLengthRef = useRef(0);
   const backgroundNodesRef = useRef<Point[]>([]);
 
@@ -333,7 +335,11 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
         const ctx = canvas.getContext('2d');
         if (ctx) ctx.scale(dpr, dpr);
         
-        pathPointsRef.current = generatePathPoints(levelConfig.pathType, width, height);
+        const gen = generatePathPoints(levelConfig.pathType, width, height);
+        pathPointsRef.current = gen.path;
+        obstaclesRef.current = gen.obstacles;
+        tunnelsRef.current = gen.tunnels;
+        
         const newLength = getPathLength(pathPointsRef.current);
         pathLengthRef.current = newLength;
         
@@ -600,9 +606,34 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
                     collided = true;
                     break;
                 }
+                
+                // Obstacle Collision
+                if (!p.isEmp) { // EMP goes through walls
+                    for (const obs of obstaclesRef.current) {
+                        // Simple AABB for rectangular obstacles
+                        if (p.x > obs.x - obs.width/2 - MARBLE_RADIUS && 
+                            p.x < obs.x + obs.width/2 + MARBLE_RADIUS &&
+                            p.y > obs.y - obs.height/2 - MARBLE_RADIUS &&
+                            p.y < obs.y + obs.height/2 + MARBLE_RADIUS) {
+                                spawnParticles(p.x, p.y, p.color);
+                                playSound('shoot'); // Ricochet sound placeholder
+                                projectilesRef.current.splice(i, 1);
+                                comboStreakRef.current = 0;
+                                collided = true;
+                                break;
+                        }
+                    }
+                }
+                if (collided) break;
 
                 for (let mIdx = 0; mIdx < marblesRef.current.length; mIdx++) {
                     const m = marblesRef.current[mIdx];
+                    
+                    // TUNNEL CHECK: If marble is in a tunnel, it cannot be hit
+                    if (isInTunnel(m.offset, totalLength => getPointAtDistance(m.offset, pathPointsRef.current, totalLength))) {
+                         continue;
+                    }
+
                     const mPoint = getPointAtDistance(m.offset, pathPointsRef.current, pathLengthRef.current);
                     
                     const dx = p.x - mPoint.x;
@@ -714,12 +745,26 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
 
     drawCyberpunkBackground(ctx, logicalWidth, logicalHeight);
     drawTrack(ctx);
+    drawObstacles(ctx);
     drawDataCore(ctx);
 
     marblesRef.current.forEach(m => {
-        const pos = getPointAtDistance(m.offset, pathPointsRef.current, pathLengthRef.current);
-        const rotation = m.offset / MARBLE_RADIUS;
-        drawMarble(ctx, pos.x, pos.y, m, MARBLE_RADIUS, rotation);
+        // Check if inside tunnel
+        const currentIdx = Math.floor((m.offset / pathLengthRef.current) * (pathPointsRef.current.length - 1));
+        let hidden = false;
+        
+        for(const t of tunnelsRef.current) {
+            if (currentIdx >= t.startIdx && currentIdx <= t.endIdx) {
+                hidden = true;
+                break;
+            }
+        }
+        
+        if (!hidden) {
+            const pos = getPointAtDistance(m.offset, pathPointsRef.current, pathLengthRef.current);
+            const rotation = m.offset / MARBLE_RADIUS;
+            drawMarble(ctx, pos.x, pos.y, m, MARBLE_RADIUS, rotation);
+        }
     });
 
     projectilesRef.current.forEach(p => {
@@ -774,6 +819,15 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
   }, [levelConfig, upgrades, wallpaperId, selectedSkin, wallpaper, isPaused, sfxEnabled]); 
 
   // --- HELPERS ---
+  
+  const isInTunnel = (offset: number, _getPos: any) => {
+      if (tunnelsRef.current.length === 0) return false;
+      const idx = Math.floor((offset / pathLengthRef.current) * (pathPointsRef.current.length - 1));
+      for(const t of tunnelsRef.current) {
+          if (idx >= t.startIdx && idx <= t.endIdx) return true;
+      }
+      return false;
+  };
 
   const swapColors = () => {
       playSound('swap');
@@ -791,6 +845,9 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       
       const toDestroy: number[] = [];
       marblesRef.current.forEach((target, tIdx) => {
+           // Skip if hidden in tunnel
+           if (isInTunnel(target.offset, null)) return;
+           
            const tPoint = getPointAtDistance(target.offset, pathPointsRef.current, pathLengthRef.current);
            if (getDistance({x, y}, tPoint) < radius) {
                toDestroy.push(tIdx);
@@ -901,7 +958,12 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
           }
 
           const centerMarble = marbles[idx]; 
-          const point = getPointAtDistance(centerMarble.offset, pathPointsRef.current, pathLengthRef.current);
+          // If match happens inside tunnel (rare but possible during physics snap), use edges
+          let point = getPointAtDistance(centerMarble.offset, pathPointsRef.current, pathLengthRef.current);
+          if (isInTunnel(centerMarble.offset, null)) {
+              // Just use last known visible point or center screen as fallback to prevent particles appearing in void
+              point = {x: canvasRef.current!.width/2, y: canvasRef.current!.height/2}; 
+          }
           
           spawnParticles(point.x, point.y, pivotColor);
           triggerShake(5 + count); 
@@ -1021,65 +1083,170 @@ const GameCanvas = forwardRef<GameCanvasRef, GameCanvasProps>(({
       ctx.globalAlpha = 1.0;
   };
 
+  const drawObstacles = (ctx: CanvasRenderingContext2D) => {
+      obstaclesRef.current.forEach(obs => {
+          ctx.save();
+          ctx.translate(obs.x, obs.y);
+          ctx.rotate(obs.rotation);
+          
+          // Outer Glow
+          ctx.shadowColor = '#ff003c';
+          ctx.shadowBlur = 15;
+          
+          // Main Body
+          ctx.fillStyle = '#1a0505';
+          ctx.strokeStyle = '#ff003c';
+          ctx.lineWidth = 2;
+          
+          ctx.beginPath();
+          ctx.roundRect(-obs.width/2, -obs.height/2, obs.width, obs.height, 8);
+          ctx.fill();
+          ctx.stroke();
+          
+          // Pattern
+          ctx.beginPath();
+          ctx.moveTo(-obs.width/2 + 5, -obs.height/2 + 5);
+          ctx.lineTo(obs.width/2 - 5, obs.height/2 - 5);
+          ctx.moveTo(obs.width/2 - 5, -obs.height/2 + 5);
+          ctx.lineTo(-obs.width/2 + 5, obs.height/2 - 5);
+          ctx.strokeStyle = 'rgba(255, 0, 60, 0.3)';
+          ctx.stroke();
+          
+          ctx.restore();
+      });
+  };
+
   const drawTrack = (ctx: CanvasRenderingContext2D) => {
     if (pathPointsRef.current.length > 0) {
+        // Draw Tunnels First (Portals)
+        tunnelsRef.current.forEach(t => {
+            if (pathPointsRef.current[t.startIdx]) {
+                const p = pathPointsRef.current[t.startIdx];
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(Date.now() / 500);
+                
+                // Portal Entry Effect
+                const grad = ctx.createRadialGradient(0,0, 5, 0,0, 20);
+                grad.addColorStop(0, '#fff');
+                grad.addColorStop(0.5, t.color);
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, 0, 25, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = t.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 15 + Math.sin(Date.now()/200)*5, 0, Math.PI*2);
+                ctx.stroke();
+                ctx.restore();
+            }
+            if (pathPointsRef.current[t.endIdx]) {
+                const p = pathPointsRef.current[t.endIdx];
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(-Date.now() / 500);
+                 
+                // Portal Exit Effect
+                const grad = ctx.createRadialGradient(0,0, 5, 0,0, 20);
+                grad.addColorStop(0, '#fff');
+                grad.addColorStop(0.5, t.color);
+                grad.addColorStop(1, 'transparent');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(0, 0, 25, 0, Math.PI*2);
+                ctx.fill();
+                ctx.strokeStyle = t.color;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 15 + Math.sin(Date.now()/200)*5, 0, Math.PI*2);
+                ctx.stroke();
+                ctx.restore();
+            }
+        });
+
         const dangerStartIndex = Math.floor(pathPointsRef.current.length * 0.85);
         
-        ctx.strokeStyle = 'rgba(255, 0, 0, 0.3)';
-        ctx.lineWidth = PATH_WIDTH + 12;
         ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+
+        // Helper to check if a segment is inside a tunnel
+        const isSegmentInTunnel = (i: number) => {
+            for(const t of tunnelsRef.current) {
+                if (i >= t.startIdx && i < t.endIdx) return true;
+            }
+            return false;
+        };
+
+        // Draw Base Track
+        ctx.strokeStyle = wallpaper.primaryColor;
+        ctx.globalAlpha = 0.15;
+        ctx.lineWidth = PATH_WIDTH + 10;
         ctx.beginPath();
-        for (let i = dangerStartIndex; i < pathPointsRef.current.length; i++) {
-            const p = pathPointsRef.current[i];
-            if (i === dangerStartIndex) ctx.moveTo(p.x, p.y);
-            else ctx.lineTo(p.x, p.y);
-        }
+        
+        let penDown = false;
+        pathPointsRef.current.forEach((p, idx) => {
+            if (isSegmentInTunnel(idx)) {
+                penDown = false;
+                return;
+            }
+            if (!penDown) {
+                ctx.moveTo(p.x, p.y);
+                penDown = true;
+            } else {
+                ctx.lineTo(p.x, p.y);
+            }
+        });
         ctx.stroke();
 
-        ctx.strokeStyle = '#ff0000';
+        // Draw Main Track Body
+        ctx.globalAlpha = 0.5;
         ctx.lineWidth = PATH_WIDTH + 2;
         ctx.stroke();
+        ctx.globalAlpha = 1.0;
+
+        // Draw Inner Track
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        ctx.lineWidth = PATH_WIDTH;
+        ctx.stroke();
+
+        // Draw Dash Animation
+        ctx.globalCompositeOperation = 'lighter';
+        const timeScale = slowMoTimerRef.current > 0 ? 0.4 : 1.0;
+        const dashOffset = (-Date.now() / 15) * timeScale;
+        
+        if (reverseTimerRef.current > 0) ctx.strokeStyle = '#ffffff'; 
+        else if (slowMoTimerRef.current > 0) ctx.strokeStyle = '#f0ff00'; 
+        else ctx.strokeStyle = wallpaper.primaryColor; 
+        
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 40]); 
+        ctx.lineDashOffset = dashOffset;
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalCompositeOperation = 'source-over';
+        
+        // Draw Danger Zone
+        ctx.strokeStyle = 'rgba(255, 0, 0, 0.6)';
+        ctx.lineWidth = PATH_WIDTH + 2;
+        ctx.beginPath();
+        penDown = false;
+        for (let i = dangerStartIndex; i < pathPointsRef.current.length; i++) {
+             if (isSegmentInTunnel(i)) {
+                 penDown = false;
+                 continue;
+             }
+             const p = pathPointsRef.current[i];
+             if (!penDown) {
+                 ctx.moveTo(p.x, p.y);
+                 penDown = true;
+             } else {
+                 ctx.lineTo(p.x, p.y);
+             }
+        }
+        ctx.stroke();
     }
-
-    ctx.strokeStyle = wallpaper.primaryColor;
-    ctx.globalAlpha = 0.15;
-    ctx.lineWidth = PATH_WIDTH + 10;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    pathPointsRef.current.forEach((p, idx) => {
-        if (idx === 0) ctx.moveTo(p.x, p.y);
-        else ctx.lineTo(p.x, p.y);
-    });
-    ctx.stroke();
-
-    ctx.globalAlpha = 0.5;
-    ctx.lineWidth = PATH_WIDTH + 2;
-    ctx.stroke();
-    ctx.globalAlpha = 1.0;
-
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)';
-    ctx.lineWidth = PATH_WIDTH;
-    ctx.stroke();
-    
-    ctx.globalCompositeOperation = 'lighter';
-    const timeScale = slowMoTimerRef.current > 0 ? 0.4 : 1.0;
-    const dashOffset = (-Date.now() / 15) * timeScale;
-    
-    if (reverseTimerRef.current > 0) {
-         ctx.strokeStyle = '#ffffff'; 
-    } else if (slowMoTimerRef.current > 0) {
-         ctx.strokeStyle = '#f0ff00'; 
-    } else {
-         ctx.strokeStyle = wallpaper.primaryColor; 
-    }
-    
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 40]); 
-    ctx.lineDashOffset = dashOffset;
-    ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.globalCompositeOperation = 'source-over';
   };
 
   const drawDataCore = (ctx: CanvasRenderingContext2D) => {
